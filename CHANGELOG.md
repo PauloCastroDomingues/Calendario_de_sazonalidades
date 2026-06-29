@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 - 2026-06-29
+
+- Refinado o visual das tabelas para uma leitura mais limpa, profissional e executiva.
+- Substituidos chips muito arredondados por tags compactas com cores semanticas mais discretas.
+- Suavizados bordas, sombras, cabecalhos e divisorias para reduzir ruido visual no dashboard.
+
 ## 0.3.0 - 2026-06-29
 
 - Compactado o topo do dashboard para dar mais foco ao calendario.

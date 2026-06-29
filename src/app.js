@@ -2761,9 +2761,11 @@ function variationBadge(result) {
 
 function classificationClass(value = "") {
   const normalized = slug(value);
-  return ["queda", "sumiu-no-periodo", "sem-performance-atual", "atencao"].includes(normalized)
-    ? "warning"
-    : "";
+  if (["queda", "sumiu-no-periodo", "sem-performance-atual"].includes(normalized)) return "danger";
+  if (["atencao"].includes(normalized)) return "warning";
+  if (["destaque", "novo-no-periodo", "nova-no-periodo"].includes(normalized)) return "success";
+  if (["estavel"].includes(normalized)) return "neutral";
+  return "";
 }
 
 function isStockRisky(status = "") {
