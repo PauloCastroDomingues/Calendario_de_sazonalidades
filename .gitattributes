@@ -10,4 +10,5 @@
 *.toml text eol=lf
 .gitignore text eol=lf
 .vercelignore text eol=lf
+.python-version text eol=lf
 VERSION text eol=lf

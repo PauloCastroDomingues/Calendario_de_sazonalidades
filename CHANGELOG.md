@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 - 2026-06-29
+
+- Adicionada tabela `[project]` no `pyproject.toml` para o build Python atual do Vercel com `uv`.
+- Fixada a versao Python de deploy em `3.12`.
+
 ## 0.2.1 - 2026-06-29
 
 - Adicionado `.vercelignore` para bloquear credenciais, estado local, caches e `data/consolidado.json` em deploys feitos pela Vercel CLI.
