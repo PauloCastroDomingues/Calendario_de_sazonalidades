@@ -1,0 +1,66 @@
+[
+  {
+    "sku": "SKU-BOTA-CHELSEA",
+    "product_name": "Bota Chelsea Reise",
+    "stock_available": 347,
+    "sales_last_30d": 193,
+    "coverage_days": 53.9,
+    "risk_status": "Saudável"
+  },
+  {
+    "sku": "SKU-MOCASSIM-LISBON",
+    "product_name": "Mocassim Lisbon",
+    "stock_available": 278,
+    "sales_last_30d": 104,
+    "coverage_days": 80.2,
+    "risk_status": "Atenção"
+  },
+  {
+    "sku": "SKU-SANDALIA-TOSCANA",
+    "product_name": "Sandália Toscana",
+    "stock_available": 273,
+    "sales_last_30d": 119,
+    "coverage_days": 68.8,
+    "risk_status": "Saudável"
+  },
+  {
+    "sku": "SKU-BOLSA-MINI",
+    "product_name": "Bolsa Reise Mini",
+    "stock_available": 521,
+    "sales_last_30d": 187,
+    "coverage_days": 83.6,
+    "risk_status": "Saudável"
+  },
+  {
+    "sku": "SKU-TENIS-URBANO",
+    "product_name": "Tênis Urbano Reise",
+    "stock_available": 383,
+    "sales_last_30d": 209,
+    "coverage_days": 55.0,
+    "risk_status": "Saudável"
+  },
+  {
+    "sku": "SKU-MULE-SOFIA",
+    "product_name": "Mule Sofia",
+    "stock_available": 535,
+    "sales_last_30d": 201,
+    "coverage_days": 79.9,
+    "risk_status": "Saudável"
+  },
+  {
+    "sku": "SKU-CINTO-MILANO",
+    "product_name": "Cinto Milano",
+    "stock_available": 368,
+    "sales_last_30d": 114,
+    "coverage_days": 96.8,
+    "risk_status": "Saudável"
+  },
+  {
+    "sku": "SKU-SCARPIN-CLASSIC",
+    "product_name": "Scarpin Classic",
+    "stock_available": 154,
+    "sales_last_30d": 140,
+    "coverage_days": 33.0,
+    "risk_status": "Atenção"
+  }
+]

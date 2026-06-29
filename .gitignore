@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Local environments
+.env
+.env.*
+.venv/
+venv/
+
+# Secrets and local tool state
+credentials/
+.vercel/
+.agents/
+.codex/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Generated local logs/temp files
+*.log
+tmp/
+temp/
+data/consolidado.json

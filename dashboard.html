@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Calendário Comercial Reise</title>
+    <link rel="stylesheet" href="src/style.css?v=enterprise-20260527" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+    <script src="src/app.js?v=enterprise-20260527" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="title-block">
+        <span class="eyebrow">Calendário Comercial</span>
+        <h1>Calendário Comercial Reise</h1>
+        <p>Feriados, sazonalidades, datas comerciais e performance</p>
+      </div>
+
+      <div class="backend-status-card" aria-label="Status de atualização dos dados">
+        <div>
+          <span id="backendStatusPill" class="backend-status-pill">Modo local</span>
+          <strong id="backendStatusText">Conectando API...</strong>
+        </div>
+        <div class="backend-status-meta">
+          <span>Última: <strong id="lastUpdateText">-</strong></span>
+          <span>Próxima: <strong id="nextUpdateText">-</strong></span>
+        </div>
+        <button id="refreshNowButton" class="secondary-button" type="button">Atualizar agora</button>
+      </div>
+
+    </header>
+
+    <main class="page-shell">
+      <section class="filter-band" aria-label="Filtros de eventos">
+        <span>Filtros</span>
+        <label class="filter-pill">
+          <input type="checkbox" value="Feriado" checked data-filter />
+          Feriado
+        </label>
+        <label class="filter-pill">
+          <input type="checkbox" value="Data comercial" checked data-filter />
+          Data comercial
+        </label>
+        <label class="filter-pill">
+          <input type="checkbox" value="Sazonalidade" checked data-filter />
+          Sazonalidade
+        </label>
+        <label class="filter-pill">
+          <input type="checkbox" value="Campanha" checked data-filter />
+          Campanha
+        </label>
+      </section>
+
+      <p id="dataStatus" class="data-status" role="status"></p>
+
+      <section class="main-grid">
+        <div class="calendar-panel" aria-label="Calendário mensal">
+          <div class="month-heading">
+            <div>
+              <span class="eyebrow">Visão mensal</span>
+              <h2 id="monthTitle">Calendário</h2>
+            </div>
+            <p id="monthInsight">Selecione uma data para ver os detalhes.</p>
+          </div>
+
+          <div class="calendar-controls" aria-label="Filtros de navegação e comparação">
+            <div class="calendar-control-row nav-row">
+              <button id="prevMonthButton" class="arrow-button" type="button" aria-label="Mês anterior" title="Mês anterior">←</button>
+              <label>
+                Mês atual
+                <select id="monthSelect"></select>
+              </label>
+              <label>
+                Ano atual
+                <select id="yearSelect"></select>
+              </label>
+              <button id="nextMonthButton" class="arrow-button" type="button" aria-label="Próximo mês" title="Próximo mês">→</button>
+              <button id="todayButton" class="secondary-button" type="button">Hoje</button>
+              <button id="clearSelectionButton" class="secondary-button" type="button">Limpar seleção</button>
+            </div>
+
+            <div class="calendar-control-row analyze-row">
+              <span class="analyze-title">Analisar</span>
+
+              <div class="menu-root" data-menu-root="period">
+                <button id="periodMenuButton" class="menu-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="periodMenu">
+                  <span class="trigger-icon" aria-hidden="true">&#128197;</span>
+                  <span id="periodButtonLabel">Mês atual</span>
+                  <span class="trigger-caret" aria-hidden="true">▾</span>
+                </button>
+                <div id="periodMenu" class="floating-menu" hidden>
+                  <div class="menu-heading">
+                    <strong>Período</strong>
+                    <span>Escolha uma janela de análise.</span>
+                  </div>
+                  <div class="menu-options">
+                    <button type="button" data-period-option="today">Hoje</button>
+                    <button type="button" data-period-option="yesterday">Ontem</button>
+                    <button type="button" data-period-option="selectedDay">Data selecionada</button>
+                    <button type="button" data-period-option="selectedPeriod">Período selecionado</button>
+                    <button type="button" data-period-option="last7">Últimos 7 dias</button>
+                    <button type="button" data-period-option="last15">Últimos 15 dias</button>
+                    <button type="button" data-period-option="last30">Últimos 30 dias</button>
+                    <button type="button" data-period-option="previous7">7 dias anteriores</button>
+                    <button type="button" data-period-option="next7">7 dias posteriores</button>
+                    <button type="button" data-period-option="previous15">15 dias anteriores</button>
+                    <button type="button" data-period-option="next15">15 dias posteriores</button>
+                    <button type="button" data-period-option="previous30">30 dias anteriores</button>
+                    <button type="button" data-period-option="next30">30 dias posteriores</button>
+                    <button type="button" data-period-option="fullCurrentMonth">Mês atual</button>
+                    <button type="button" data-period-option="previousMonthPeriod">Mês anterior</button>
+                    <button type="button" data-period-option="nextMonthPeriod">Mês posterior</button>
+                    <button type="button" data-period-option="fullCurrentYear">Ano atual</button>
+                    <button type="button" data-period-option="freePeriod">Data livre</button>
+                  </div>
+                  <div class="menu-section">
+                    <span class="menu-section-title">Personalizado</span>
+                    <div class="menu-field-grid">
+                      <label>
+                        Data inicial
+                        <input id="freePeriodStart" type="date" />
+                      </label>
+                      <label>
+                        Data final
+                        <input id="freePeriodEnd" type="date" />
+                      </label>
+                    </div>
+                    <button id="applyFreePeriodButton" class="primary-button menu-apply-button" type="button">Aplicar</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="menu-root" data-menu-root="comparison">
+                <button id="comparisonMenuButton" class="menu-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="comparisonMenu">
+                  <span class="trigger-icon" aria-hidden="true">&#8644;</span>
+                  <span id="comparisonButtonLabel">Sem comparação</span>
+                  <span class="trigger-caret" aria-hidden="true">▾</span>
+                </button>
+                <div id="comparisonMenu" class="floating-menu" hidden>
+                  <div class="menu-heading">
+                    <strong>Comparação</strong>
+                    <span>Defina a base comparativa.</span>
+                  </div>
+                  <div class="menu-options">
+                    <button type="button" data-compare-option="none">Sem comparação</button>
+                    <button type="button" data-compare-option="previousPeriod">Período anterior</button>
+                    <button type="button" data-compare-option="previousYear">Ano anterior</button>
+                    <button type="button" data-compare-option="nextYear">Ano posterior</button>
+                    <button type="button" data-compare-option="previousMonth">Mês anterior</button>
+                    <button type="button" data-compare-option="nextMonth">Mês posterior</button>
+                    <button type="button" data-compare-option="manualYear">Mesmo mês de outro ano</button>
+                    <button type="button" data-compare-option="previousYearEvent">Mesmo evento do ano anterior</button>
+                    <button type="button" data-compare-option="target">Meta</button>
+                    <button type="button" data-compare-option="freeDate">Data livre</button>
+                  </div>
+                  <div id="compareYearSection" class="menu-section" hidden>
+                    <span class="menu-section-title">Mesmo mês de outro ano</span>
+                    <label>
+                      Ano de comparação
+                      <select id="compareYearSelect"></select>
+                    </label>
+                    <button id="applyCompareYearButton" class="primary-button menu-apply-button" type="button">Aplicar</button>
+                  </div>
+                  <div id="freeCompareSection" class="menu-section" hidden>
+                    <span class="menu-section-title">Data livre</span>
+                    <div class="menu-field-grid">
+                      <label>
+                        Data inicial comparação
+                        <input id="freeCompareStart" type="date" />
+                      </label>
+                      <label>
+                        Data final comparação
+                        <input id="freeCompareEnd" type="date" />
+                      </label>
+                    </div>
+                    <button id="applyFreeCompareButton" class="primary-button menu-apply-button" type="button">Aplicar</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="menu-root menu-root-wide" data-menu-root="manual">
+                <button id="manualEventsMenuButton" class="menu-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="manualEventsMenu">
+                  <span class="trigger-icon" aria-hidden="true">&#9737;</span>
+                  <span>Campanhas e lançamentos</span>
+                  <span class="trigger-caret" aria-hidden="true">▾</span>
+                </button>
+                <div id="manualEventsMenu" class="floating-menu manual-menu" hidden>
+                  <div class="menu-heading">
+                    <strong>Eventos manuais</strong>
+                    <span>Campanhas, lançamentos e observações do calendário local.</span>
+                  </div>
+                  <div class="manual-actions">
+                    <button id="addManualEventButton" class="secondary-button" type="button">Adicionar campanha/lançamento</button>
+                    <button id="exportManualEventsButton" class="secondary-button" type="button">Exportar eventos manuais</button>
+                    <label class="secondary-button file-button">
+                      Importar eventos manuais
+                      <input id="importManualEventsInput" type="file" accept="application/json,.json" />
+                    </label>
+                  </div>
+
+                  <form id="manualEventForm" class="manual-event-form" hidden>
+                    <label>
+                      Título
+                      <input id="manualTitle" name="titulo" type="text" required />
+                    </label>
+                    <label>
+                      Tipo
+                      <select id="manualType" name="tipo" required>
+                        <option value="Campanha">Campanha</option>
+                        <option value="Lançamento de produto">Lançamento de produto</option>
+                        <option value="Ação comercial">Ação comercial</option>
+                        <option value="CRM">CRM</option>
+                        <option value="Mídia paga">Mídia paga</option>
+                        <option value="Observação interna">Observação interna</option>
+                      </select>
+                    </label>
+                    <label>
+                      Data início
+                      <input id="manualStartDate" name="data_inicio" type="date" required />
+                    </label>
+                    <label>
+                      Data fim
+                      <input id="manualEndDate" name="data_fim" type="date" required />
+                    </label>
+                    <label>
+                      Produto relacionado
+                      <input id="manualProduct" name="produto_relacionado" type="text" />
+                    </label>
+                    <label>
+                      Campanha relacionada
+                      <input id="manualCampaign" name="campanha_relacionada" type="text" />
+                    </label>
+                    <label>
+                      Prioridade
+                      <select id="manualPriority" name="prioridade">
+                        <option value="Alta">Alta</option>
+                        <option value="Média">Média</option>
+                        <option value="Baixa">Baixa</option>
+                      </select>
+                    </label>
+                    <label>
+                      Responsável
+                      <input id="manualOwner" name="responsavel" type="text" />
+                    </label>
+                    <label>
+                      Status
+                      <select id="manualStatusField" name="status">
+                        <option value="Ativo">Ativo</option>
+                        <option value="Planejado">Planejado</option>
+                        <option value="Em andamento">Em andamento</option>
+                        <option value="Concluído">Concluído</option>
+                      </select>
+                    </label>
+                    <label class="manual-observation">
+                      Observação
+                      <textarea id="manualObservation" name="observacao" rows="3"></textarea>
+                    </label>
+                    <div class="manual-form-actions">
+                      <button class="primary-button" type="submit">Salvar evento</button>
+                      <button id="cancelManualEventButton" class="secondary-button" type="button">Cancelar</button>
+                    </div>
+                  </form>
+                  <p id="manualEventsStatus" class="manual-status"></p>
+                  <div id="manualEventsList" class="manual-events-list-panel" aria-live="polite"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="weekday-row" aria-hidden="true">
+            <span>Dom</span>
+            <span>Seg</span>
+            <span>Ter</span>
+            <span>Qua</span>
+            <span>Qui</span>
+            <span>Sex</span>
+            <span>Sáb</span>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </div>
+
+        <aside class="detail-panel" aria-label="Detalhes da data selecionada">
+          <h2 id="detailTitle">Selecione uma data</h2>
+          <p id="detailSubtitle" class="detail-subtitle">
+            Clique em um dia do calendário para abrir a leitura comercial.
+          </p>
+          <div id="detailContent" class="detail-content"></div>
+        </aside>
+      </section>
+
+      <section id="summaryFluctuation" class="fluctuation-panel" hidden></section>
+
+      <section class="summary-strip" aria-label="Resumo do mês">
+        <article class="summary-card">
+          <span>Faturamento</span>
+          <strong id="summaryRevenue">R$ 0</strong>
+        </article>
+        <article class="summary-card">
+          <span>Pedidos</span>
+          <strong id="summaryOrders">0</strong>
+        </article>
+        <article class="summary-card">
+          <span>Ticket médio</span>
+          <strong id="summaryTicket">R$ 0</strong>
+        </article>
+        <article class="summary-card">
+          <span>Conversão</span>
+          <strong id="summaryConversion">0%</strong>
+        </article>
+        <article class="summary-card">
+          <span>ROAS</span>
+          <strong id="summaryRoas">0,0x</strong>
+        </article>
+      </section>
+
+      <section class="charts-grid" aria-label="Gráficos de performance">
+        <article class="chart-card">
+          <h3>Receita por dia</h3>
+          <canvas id="revenueChart" height="180"></canvas>
+        </article>
+        <article class="chart-card">
+          <h3>Pedidos por dia</h3>
+          <canvas id="ordersChart" height="180"></canvas>
+        </article>
+        <article class="chart-card">
+          <h3>Ticket médio por dia</h3>
+          <canvas id="ticketChart" height="180"></canvas>
+        </article>
+        <article class="chart-card">
+          <h3>Conversão por dia</h3>
+          <canvas id="conversionChart" height="180"></canvas>
+        </article>
+        <article class="chart-card">
+          <h3>ROAS por dia</h3>
+          <canvas id="roasChart" height="180"></canvas>
+        </article>
+        <article class="chart-card">
+          <h3>Add to cart por dia</h3>
+          <canvas id="addToCartChart" height="180"></canvas>
+        </article>
+        <article class="chart-card">
+          <h3>Checkout por dia</h3>
+          <canvas id="checkoutChart" height="180"></canvas>
+        </article>
+      </section>
+
+      <section class="tables-grid" aria-label="Tabelas comerciais">
+        <article class="table-panel" id="productsPanel">
+          <div class="section-heading">
+            <span class="eyebrow">Produtos</span>
+            <h2>Destaques e quedas</h2>
+            <p class="table-subtext" id="productsTableSubtext" hidden></p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead id="productsTableHead">
+                <tr>
+                  <th>Produto</th>
+                  <th>Classificação</th>
+                  <th>Itens</th>
+                  <th>Receita</th>
+                  <th>Estoque</th>
+                </tr>
+              </thead>
+              <tbody id="productsTable"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="table-panel" id="campaignsPanel">
+          <div class="section-heading">
+            <span class="eyebrow">Aquisição</span>
+            <h2>Campanhas e UTMs</h2>
+            <p class="table-subtext" id="campaignsTableSubtext" hidden></p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead id="campaignsTableHead">
+                <tr>
+                  <th>Origem</th>
+                  <th>Nome</th>
+                  <th>Pedidos</th>
+                  <th>Receita</th>
+                  <th>ROAS</th>
+                </tr>
+              </thead>
+              <tbody id="campaignsTable"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>
