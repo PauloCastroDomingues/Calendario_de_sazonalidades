@@ -143,6 +143,10 @@ function bindControls() {
     event.stopPropagation();
     toggleMenu("manual");
   });
+  document.getElementById("closeManualEventsButton").addEventListener("click", closeMenus);
+  document.querySelector('[data-menu-root="manual"]').addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) closeMenus();
+  });
 
   document.getElementById("yearSelect").addEventListener("change", (event) => {
     state.year = Number(event.target.value);
@@ -243,6 +247,7 @@ function toggleMenu(menuName) {
   const menu = root.querySelector(".floating-menu");
   const button = root.querySelector(".menu-trigger");
   state.openMenu = menuName;
+  root.classList.add("is-open");
   menu.hidden = false;
   button.setAttribute("aria-expanded", "true");
   if (menuName === "manual") renderManualEventsList();
@@ -253,6 +258,7 @@ function closeMenus() {
   document.querySelectorAll("[data-menu-root]").forEach((root) => {
     const menu = root.querySelector(".floating-menu");
     const button = root.querySelector(".menu-trigger");
+    root.classList.remove("is-open");
     if (menu) menu.hidden = true;
     if (button) button.setAttribute("aria-expanded", "false");
   });
@@ -498,15 +504,19 @@ function renderBackendStatus() {
   if (!pill || !text || !lastUpdate || !nextUpdate || !button) return;
 
   const status = state.backendStatus || {};
+  const sourceStatus = status.source_status || {};
   const isRefreshing = Boolean(status.is_refreshing || state.isRefreshingNow);
+  const isScheduled = sourceStatus.refresh_loop_enabled !== false;
   pill.textContent = state.apiAvailable ? "API compartilhada" : "Modo local";
   text.textContent = state.apiAvailable
     ? isRefreshing
       ? "Atualizando dados..."
-      : "Dados sincronizados"
+      : isScheduled
+        ? "Dados sincronizados"
+        : "Dados prontos sob demanda"
     : "API indisponível; usando fallback local";
   lastUpdate.textContent = formatBackendDateTime(status.updated_at);
-  nextUpdate.textContent = formatBackendDateTime(status.next_update_at);
+  nextUpdate.textContent = isScheduled ? formatBackendDateTime(status.next_update_at) : "Sob demanda";
   button.disabled = !state.apiAvailable || isRefreshing;
   button.textContent = isRefreshing ? "Atualizando..." : "Atualizar agora";
 }

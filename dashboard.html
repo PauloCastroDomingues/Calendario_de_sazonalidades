@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Calendário Comercial Reise</title>
-    <link rel="stylesheet" href="src/style.css?v=enterprise-20260527" />
+    <link rel="stylesheet" href="src/style.css?v=layout-20260629" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="src/app.js?v=enterprise-20260527" defer></script>
+    <script src="src/app.js?v=layout-20260629" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -31,7 +31,20 @@
     </header>
 
     <main class="page-shell">
-      <section class="filter-band" aria-label="Filtros de eventos">
+      <p id="dataStatus" class="data-status" role="status"></p>
+
+      <section class="main-grid">
+        <div class="calendar-panel" aria-label="Calendário mensal">
+          <div class="month-heading">
+            <div>
+              <span class="eyebrow">Visão mensal</span>
+              <h2 id="monthTitle">Calendário</h2>
+            </div>
+            <p id="monthInsight">Selecione uma data para ver os detalhes.</p>
+          </div>
+
+          <div class="calendar-controls" aria-label="Filtros de navegação e comparação">
+            <section class="filter-band" aria-label="Filtros de eventos">
         <span>Filtros</span>
         <label class="filter-pill">
           <input type="checkbox" value="Feriado" checked data-filter />
@@ -49,34 +62,24 @@
           <input type="checkbox" value="Campanha" checked data-filter />
           Campanha
         </label>
-      </section>
-
-      <p id="dataStatus" class="data-status" role="status"></p>
-
-      <section class="main-grid">
-        <div class="calendar-panel" aria-label="Calendário mensal">
-          <div class="month-heading">
-            <div>
-              <span class="eyebrow">Visão mensal</span>
-              <h2 id="monthTitle">Calendário</h2>
-            </div>
-            <p id="monthInsight">Selecione uma data para ver os detalhes.</p>
-          </div>
-
-          <div class="calendar-controls" aria-label="Filtros de navegação e comparação">
+            </section>
             <div class="calendar-control-row nav-row">
-              <button id="prevMonthButton" class="arrow-button" type="button" aria-label="Mês anterior" title="Mês anterior">←</button>
-              <label>
-                Mês atual
-                <select id="monthSelect"></select>
-              </label>
-              <label>
-                Ano atual
-                <select id="yearSelect"></select>
-              </label>
-              <button id="nextMonthButton" class="arrow-button" type="button" aria-label="Próximo mês" title="Próximo mês">→</button>
-              <button id="todayButton" class="secondary-button" type="button">Hoje</button>
-              <button id="clearSelectionButton" class="secondary-button" type="button">Limpar seleção</button>
+              <div class="control-cluster month-nav">
+                <button id="prevMonthButton" class="arrow-button" type="button" aria-label="Mês anterior" title="Mês anterior">←</button>
+                <label>
+                  Mês atual
+                  <select id="monthSelect"></select>
+                </label>
+                <label>
+                  Ano atual
+                  <select id="yearSelect"></select>
+                </label>
+                <button id="nextMonthButton" class="arrow-button" type="button" aria-label="Próximo mês" title="Próximo mês">→</button>
+              </div>
+              <div class="control-cluster quick-actions">
+                <button id="todayButton" class="secondary-button" type="button">Hoje</button>
+                <button id="clearSelectionButton" class="secondary-button" type="button">Limpar seleção</button>
+              </div>
             </div>
 
             <div class="calendar-control-row analyze-row">
@@ -178,16 +181,18 @@
                 </div>
               </div>
 
-              <div class="menu-root menu-root-wide" data-menu-root="manual">
-                <button id="manualEventsMenuButton" class="menu-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="manualEventsMenu">
+              <div class="menu-root menu-root-wide manual-drawer-root" data-menu-root="manual">
+                <button id="manualEventsMenuButton" class="menu-trigger" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="manualEventsMenu">
                   <span class="trigger-icon" aria-hidden="true">&#9737;</span>
                   <span>Campanhas e lançamentos</span>
-                  <span class="trigger-caret" aria-hidden="true">▾</span>
                 </button>
-                <div id="manualEventsMenu" class="floating-menu manual-menu" hidden>
-                  <div class="menu-heading">
-                    <strong>Eventos manuais</strong>
-                    <span>Campanhas, lançamentos e observações do calendário local.</span>
+                <div id="manualEventsMenu" class="floating-menu manual-menu" role="dialog" aria-modal="true" aria-label="Eventos manuais" hidden>
+                  <div class="manual-drawer-head">
+                    <div class="menu-heading">
+                      <strong>Eventos manuais</strong>
+                      <span>Campanhas, lançamentos e observações do calendário local.</span>
+                    </div>
+                    <button id="closeManualEventsButton" class="icon-button" type="button" aria-label="Fechar eventos manuais">×</button>
                   </div>
                   <div class="manual-actions">
                     <button id="addManualEventButton" class="secondary-button" type="button">Adicionar campanha/lançamento</button>
@@ -267,16 +272,18 @@
             </div>
           </div>
 
-          <div class="weekday-row" aria-hidden="true">
-            <span>Dom</span>
-            <span>Seg</span>
-            <span>Ter</span>
-            <span>Qua</span>
-            <span>Qui</span>
-            <span>Sex</span>
-            <span>Sáb</span>
+          <div class="calendar-scroll">
+            <div class="weekday-row" aria-hidden="true">
+              <span>Dom</span>
+              <span>Seg</span>
+              <span>Ter</span>
+              <span>Qua</span>
+              <span>Qui</span>
+              <span>Sex</span>
+              <span>Sáb</span>
+            </div>
+            <div id="calendarGrid" class="calendar-grid"></div>
           </div>
-          <div id="calendarGrid" class="calendar-grid"></div>
         </div>
 
         <aside class="detail-panel" aria-label="Detalhes da data selecionada">

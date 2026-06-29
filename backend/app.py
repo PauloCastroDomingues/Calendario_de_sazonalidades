@@ -32,7 +32,7 @@ refresh_service = RefreshService(settings, event_store)
 
 app = FastAPI(
     title="Calendário Comercial Reise API",
-    version="0.2.2",
+    version="0.3.0",
     description="Backend central para calendário, eventos manuais e cache de dados comerciais.",
 )
 
