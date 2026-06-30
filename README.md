@@ -32,6 +32,7 @@ O frontend não precisa de credencial BigQuery. Ele consome apenas a API do back
 
 - `GET /api/status`: última atualização, próxima atualização, status de refresh e fontes.
 - `GET /api/calendar-data`: JSON consolidado usado pelo dashboard.
+- `GET /api/analytics`: previsão de fechamento, risco, sinais executivos, próximas datas e recomendações.
 - `POST /api/refresh`: força atualização imediata.
 - `GET /api/events`: lista eventos manuais ativos.
 - `POST /api/events`: cria evento manual compartilhado.
@@ -52,6 +53,111 @@ O backend atualiza o cache ao iniciar e depois a cada 15 minutos. O topo do dash
 O botão `Atualizar agora` chama `POST /api/refresh`. Se uma atualização já estiver em andamento, a API retorna uma mensagem amigável e evita rodar duas cargas simultâneas.
 
 O frontend consulta `GET /api/status` periodicamente. Quando identifica uma nova atualização no backend, recarrega o consolidado via `GET /api/calendar-data` sem expor credenciais no navegador.
+
+## Inteligência comercial e previsão
+
+A partir da versão `0.4.0`, o backend gera uma camada analítica sobre o cache consolidado. Essa camada trabalha com corte `D-1`: se hoje é `30/06/2026`, a leitura executiva considera dados fechados até `29/06/2026`.
+
+O objetivo é transformar o calendário em um braço analítico e preditivo:
+
+- previsão de faturamento do mês;
+- risco de fechamento versus referência sugerida;
+- sinais executivos de receita, conversão, mídia, estoque e calendário;
+- próximas datas sazonais com contagem regressiva;
+- movimentos sugeridos antes de campanhas e datas comerciais.
+
+O fluxo recomendado sem custo adicional é:
+
+```text
+BigQuery -> exportador diário D-1 -> data/*.json -> backend analytics -> dashboard
+```
+
+O frontend não consulta BigQuery. A consulta pesada deve acontecer apenas no processo diário de atualização, com filtros de data, limite de bytes e cache JSON versionável.
+
+### Bridge via Apps Script
+
+Para o MVP interno, a opção mais simples é usar Apps Script como bridge autorizado pela conta Google que já acessa o BigQuery:
+
+```text
+Apps Script agenda D-1
+-> consulta BigQuery com a conta do criador do trigger
+-> gera data/*.json
+-> cria um commit no GitHub
+-> Vercel publica o novo snapshot
+```
+
+Esse caminho evita guardar uma service account do BigQuery no GitHub. O token do GitHub deve ficar somente nas propriedades do Apps Script, nunca no código nem no repositório.
+
+Arquivos do bridge:
+
+```text
+apps_script/bigquery_bridge/Code.gs
+apps_script/bigquery_bridge/appsscript.json
+apps_script/bigquery_bridge/README.md
+```
+
+Use `testarDadosD1` para estimar bytes sem publicar e `atualizarDadosD1` para atualizar os JSONs no GitHub.
+
+### Exportador Python
+
+O exportador Python continua disponível como alternativa local ou via GitHub Actions.
+
+Exportador BigQuery D-1:
+
+```bat
+python scripts\exportar_bigquery_d1.py --dry-run
+python scripts\exportar_bigquery_d1.py
+```
+
+Variáveis usadas pelo exportador:
+
+```text
+BQ_PROJECT_ID=reise-ssot
+BQ_CREDENTIALS_PATH=credentials/reise-bigquery-sa.json
+BQ_MAX_BYTES_BILLED=1073741824
+```
+
+O `--dry-run` estima bytes processados sem alterar os JSONs. A execução real grava os arquivos em `data/` e atualiza `data/manifest.json`.
+
+### Automação diária no GitHub
+
+O workflow `.github/workflows/atualizar-dados-d1.yml` roda todos os dias às `10:00 UTC` (`07:00 BRT`) e também pode ser executado manualmente pelo botão `Run workflow` no GitHub.
+
+Enquanto `BQ_PROJECT_ID` e `BQ_SERVICE_ACCOUNT_JSON` não estiverem configurados, o workflow faz apenas uma checagem inicial, registra que o BigQuery ainda não está pronto e encerra sem falhar. A exportação real só começa depois que esses secrets existirem.
+
+Configure estes secrets no repositório:
+
+```text
+BQ_PROJECT_ID
+BQ_SERVICE_ACCOUNT_JSON
+```
+
+Opcionalmente, configure esta variável do repositório:
+
+```text
+BQ_MAX_BYTES_BILLED=1073741824
+```
+
+Fluxo automático quando o BigQuery estiver configurado:
+
+```text
+GitHub Actions agenda D-1
+-> cria a credencial temporária em credentials/
+-> roda dry-run com limite de bytes
+-> exporta data/*.json
+-> valida JSONs gerados
+-> commita somente se houver mudança
+-> Vercel publica o novo snapshot
+```
+
+A service account deve ter apenas permissões de leitura:
+
+```text
+BigQuery Job User
+BigQuery Data Viewer nos datasets usados pelas queries
+```
+
+Nunca salve o JSON da service account no repositório. Use apenas `BQ_SERVICE_ACCOUNT_JSON` como GitHub Secret.
 
 ## Navegação do calendário
 

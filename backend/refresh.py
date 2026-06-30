@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .analytics import build_analytics
 from .config import Settings
 from .storage import LocalManualEventStore
 
@@ -118,7 +119,9 @@ class RefreshService:
 
         payload["eventos_manuais"] = self.event_store.list_events(include_deleted=False)
         payload["atualizado_em"] = iso_now()
+        payload["analytics"] = build_analytics(payload)
         source_status["eventos_manuais"] = f"{len(payload['eventos_manuais'])} ativo(s)"
+        source_status["analytics"] = "ok"
         return payload, source_status
 
     def _read_json(self, file_path: Path) -> list[dict[str, Any]]:

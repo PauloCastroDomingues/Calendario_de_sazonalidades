@@ -320,6 +320,57 @@
         </article>
       </section>
 
+      <section id="executiveIntelligence" class="intelligence-panel" aria-label="Previsão e próximos movimentos" hidden>
+        <div class="section-heading intelligence-heading">
+          <div>
+            <span class="eyebrow">Inteligência comercial</span>
+            <h2>Previsão e próximos movimentos</h2>
+          </div>
+          <span id="forecastCutoff" class="comparison-badge">Dados até D-1</span>
+        </div>
+
+        <div class="intelligence-kpis">
+          <div class="intelligence-primary">
+            <span>Fechamento previsto</span>
+            <strong id="forecastRevenue">R$ 0</strong>
+            <p id="forecastMeta"></p>
+          </div>
+          <div class="intelligence-stat">
+            <span>Risco</span>
+            <strong id="forecastRisk">-</strong>
+          </div>
+          <div class="intelligence-stat">
+            <span>Cobertura ref.</span>
+            <strong id="forecastCoverage">0%</strong>
+          </div>
+          <div class="intelligence-stat">
+            <span>A realizar</span>
+            <strong id="forecastRemaining">R$ 0</strong>
+          </div>
+        </div>
+
+        <div class="forecast-progress" aria-hidden="true">
+          <span id="forecastProgressBar"></span>
+        </div>
+
+        <p id="analyticsDiagnostic" class="intelligence-diagnostic"></p>
+
+        <div class="intelligence-columns">
+          <div>
+            <h3>Sinais executivos</h3>
+            <ul id="analyticsSignalsList" class="intelligence-list"></ul>
+          </div>
+          <div>
+            <h3>Próximas datas</h3>
+            <ul id="upcomingEventsList" class="intelligence-list"></ul>
+          </div>
+          <div>
+            <h3>Movimentos sugeridos</h3>
+            <ul id="recommendationsList" class="intelligence-list"></ul>
+          </div>
+        </div>
+      </section>
+
       <section class="charts-grid" aria-label="Gráficos de performance">
         <article class="chart-card">
           <h3>Receita por dia</h3>

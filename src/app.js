@@ -429,6 +429,7 @@ function normalizeCalendarPayload(payload = {}) {
     utms: payload.utms || [],
     estoque: payload.estoque || [],
     eventosManuais: normalizeManualEventsList(payload.eventos_manuais || payload.eventosManuais || []),
+    analytics: payload.analytics || null,
   };
 }
 
@@ -655,6 +656,7 @@ function renderDashboard() {
   renderCalendar();
   renderSummary();
   renderSummaryFluctuation();
+  renderExecutiveIntelligence();
   renderCharts();
   renderTables();
   renderSelectedDetail();
@@ -911,6 +913,83 @@ function renderSummary() {
   document.getElementById("summaryTicket").textContent = formatCurrency(metrics.ticket_medio);
   document.getElementById("summaryConversion").textContent = formatPercent(metrics.taxa_conversao);
   document.getElementById("summaryRoas").textContent = formatRoas(metrics.roas_mkt);
+}
+
+function renderExecutiveIntelligence() {
+  const panel = document.getElementById("executiveIntelligence");
+  const analytics = state.data.analytics;
+  const forecast = analytics?.forecast || {};
+  if (!panel || !analytics || !forecast.forecast_revenue) {
+    if (panel) panel.hidden = true;
+    return;
+  }
+
+  panel.hidden = false;
+  document.getElementById("forecastRevenue").textContent = formatCurrency(forecast.forecast_revenue);
+  document.getElementById("forecastMeta").textContent =
+    `${forecast.month_label || "-"} · ${formatInteger(forecast.elapsed_days)} de ${formatInteger(forecast.total_days)} dias · confiança ${forecast.confidence || "-"}`;
+  document.getElementById("forecastCoverage").textContent = formatPercent(Number(forecast.target_coverage || 0));
+  document.getElementById("forecastRemaining").textContent = formatCurrency(forecast.remaining_revenue);
+  document.getElementById("forecastCutoff").textContent =
+    analytics.data_cutoff ? `Dados até ${formatShortDate(analytics.data_cutoff)} · D-1` : "Dados até D-1";
+  document.getElementById("analyticsDiagnostic").textContent = analytics.diagnostic || "";
+
+  const risk = slug(forecast.risk_level || "indefinido");
+  const riskLabel = document.getElementById("forecastRisk");
+  riskLabel.textContent = capitalize(forecast.risk_level || "-");
+  riskLabel.className = `status-chip risk-${risk}`;
+
+  const progress = document.getElementById("forecastProgressBar");
+  const coverage = Math.max(0, Math.min(1.25, Number(forecast.target_coverage || 0)));
+  progress.style.width = `${Math.max(4, Math.min(100, coverage * 100))}%`;
+  progress.style.background = risk === "alto" ? "#9b3e37" : risk === "medio" ? "#8b6424" : "#174637";
+
+  document.getElementById("analyticsSignalsList").innerHTML = renderSignalItems(analytics.signals || []);
+  document.getElementById("upcomingEventsList").innerHTML = renderUpcomingEventItems(analytics.upcoming_events || []);
+  document.getElementById("recommendationsList").innerHTML = renderRecommendationItems(analytics.recommendations || []);
+}
+
+function renderSignalItems(signals = []) {
+  if (!signals.length) {
+    return `<li><strong>Nenhum alerta crítico</strong><span>O período não tem sinal executivo relevante no momento.</span></li>`;
+  }
+  return signals
+    .map(
+      (signal) => `
+        <li class="signal-${slug(signal.kind || "sinal")}">
+          <span class="signal-label">${escapeHtml(signal.kind || "sinal")}</span>
+          <strong>${escapeHtml(signal.title || "-")}</strong>
+          <span>${escapeHtml(signal.detail || "")}</span>
+        </li>
+      `
+    )
+    .join("");
+}
+
+function renderUpcomingEventItems(events = []) {
+  if (!events.length) {
+    return `<li><strong>Sem data crítica</strong><span>Nenhuma sazonalidade relevante nos próximos 90 dias.</span></li>`;
+  }
+  return events
+    .map(
+      (event) => `
+        <li>
+          <strong>${escapeHtml(event.name || "-")}</strong>
+          <span>${formatShortDate(event.date)} · faltam ${formatInteger(event.days_until)} dia(s)</span>
+          <span>${escapeHtml(event.action || "")}</span>
+        </li>
+      `
+    )
+    .join("");
+}
+
+function renderRecommendationItems(recommendations = []) {
+  if (!recommendations.length) {
+    return `<li><strong>Sem recomendação automática</strong><span>Aguardando mais dados para sugerir próximos movimentos.</span></li>`;
+  }
+  return recommendations
+    .map((recommendation) => `<li><span>${escapeHtml(recommendation)}</span></li>`)
+    .join("");
 }
 
 function renderSummaryFluctuation() {
@@ -2876,6 +2955,15 @@ function slug(value = "") {
 
 function capitalize(value = "") {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function emptyTableRow(colspan) {

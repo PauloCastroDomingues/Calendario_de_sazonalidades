@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 - 2026-06-30
+
+- Adicionada camada backend de inteligencia comercial com corte D-1.
+- Criado endpoint `/api/analytics` com previsao de fechamento, risco, sinais executivos, proximas datas sazonais e recomendacoes.
+- Incluido bloco `Previsao e proximos movimentos` no dashboard para antecipar faturamento e acoes antes das datas comerciais.
+- Criado exportador `scripts/exportar_bigquery_d1.py` para gerar snapshots diarios dos JSONs a partir do BigQuery com `dry-run` e limite de bytes.
+- Adicionado bridge `apps_script/bigquery_bridge` para atualizar snapshots D-1 pelo Apps Script usando a conta Google autorizada no BigQuery e commitando os JSONs no GitHub.
+- Criado workflow `.github/workflows/atualizar-dados-d1.yml` para automatizar a atualizacao diaria D-1 via GitHub Actions, com pre-checagem para pular sem erro enquanto o BigQuery nao estiver configurado.
+- Mantido o modelo sem custo adicional: frontend consome cache JSON/API e nao consulta BigQuery diretamente.
+
 ## 0.3.1 - 2026-06-29
 
 - Refinado o visual das tabelas para uma leitura mais limpa, profissional e executiva.

@@ -35,6 +35,10 @@ class ReiseHandler(SimpleHTTPRequestHandler):
         if path == "/api/calendar-data":
             self.send_json(asyncio.run(refresh_service.get_calendar_data()))
             return
+        if path == "/api/analytics":
+            payload = asyncio.run(refresh_service.get_calendar_data())
+            self.send_json(payload.get("analytics") or {})
+            return
         if path == "/api/events":
             self.send_json(event_store.list_events(include_deleted=False))
             return

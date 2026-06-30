@@ -32,7 +32,7 @@ refresh_service = RefreshService(settings, event_store)
 
 app = FastAPI(
     title="Calendário Comercial Reise API",
-    version="0.3.1",
+    version="0.4.0",
     description="Backend central para calendário, eventos manuais e cache de dados comerciais.",
 )
 
@@ -73,6 +73,12 @@ async def api_status() -> dict[str, Any]:
 @app.get("/api/calendar-data")
 async def api_calendar_data() -> dict[str, Any]:
     return await refresh_service.get_calendar_data()
+
+
+@app.get("/api/analytics")
+async def api_analytics() -> dict[str, Any]:
+    payload = await refresh_service.get_calendar_data()
+    return payload.get("analytics") or {}
 
 
 @app.post("/api/refresh")
