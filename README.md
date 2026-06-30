@@ -49,7 +49,7 @@ O frontend não precisa de credencial BigQuery. Ele consome apenas a API do back
 - `PUT /api/events/{id}`: edita evento manual compartilhado.
 - `DELETE /api/events/{id}`: exclui logicamente evento manual com `status = Excluído` e `deleted_at`.
 
-Nesta etapa, o backend lê os JSONs existentes e mantém eventos manuais em `data/eventos_manuais.json` como MVP compartilhado. A interface de armazenamento já está separada para trocar por Google Sheets, BigQuery ou Firestore.
+Nesta etapa, o backend le os JSONs existentes e pode manter eventos manuais de duas formas: localmente em `data/eventos_manuais.json` para desenvolvimento, ou em Google Sheets via Apps Script para uso compartilhado sem custo.
 
 ## Atualização dos dados
 
@@ -274,7 +274,11 @@ O formulário de cadastro fica oculto por padrão. Ele abre apenas ao clicar em 
 
 Campos disponíveis: título, tipo, data início, data fim, produto relacionado, campanha relacionada, prioridade, responsável, status e observação.
 
-Ao salvar com a API ativa, o evento fica gravado na base compartilhada do backend e aparece para todos os usuários. Eventos com mais de um dia marcam todo o intervalo entre `data_inicio` e `data_fim`.
+Ao salvar com a API ativa, o evento fica gravado na base compartilhada do backend e aparece para todos os usuarios. Eventos com mais de um dia marcam todo o intervalo entre `data_inicio` e `data_fim`.
+
+Para uso compartilhado sem custo, configure `EVENTS_STORAGE=apps_script`. Nesse modo, a Google Sheet vira a fonte de verdade dos eventos manuais, o Apps Script atualiza `data/eventos_manuais.json` no GitHub e o Vercel publica o snapshot atualizado.
+
+O passo a passo completo e a explicacao da logica estao em `docs/EVENTOS_MANUAIS_APPS_SCRIPT.md`.
 
 ## Editar e excluir eventos manuais
 
@@ -309,10 +313,19 @@ REFRESH_INTERVAL_MINUTES=15
 EVENTS_STORAGE=bigquery
 EVENTS_DATASET=app_calendar
 EVENTS_TABLE=manual_events
+EVENTS_APPS_SCRIPT_URL=https://script.google.com/macros/s/<deploy_id>/exec
 PORT=8765
 ```
 
-Para o MVP sem credencial, use `EVENTS_STORAGE=local` ou deixe a variável ausente. Quando `EVENTS_STORAGE=bigquery`, a interface já aponta conceitualmente para `app_calendar.manual_events`, mas a escrita real em BigQuery entra na próxima etapa.
+Para desenvolvimento local, use `EVENTS_STORAGE=local` ou deixe a variavel ausente. Para uso compartilhado sem custo, use:
+
+```text
+EVENTS_STORAGE=apps_script
+EVENTS_APPS_SCRIPT_URL=<url_do_web_app_do_apps_script>
+EVENT_MUTATIONS_ENABLED=1
+```
+
+Quando `EVENTS_STORAGE=apps_script`, o backend faz proxy para o Apps Script, que grava na Google Sheet e exporta `data/eventos_manuais.json` para o GitHub. Quando `EVENTS_STORAGE=bigquery`, a interface continua apontando conceitualmente para `app_calendar.manual_events`, mas a escrita real em BigQuery segue fora do MVP de custo zero.
 
 Schema sugerido para `app_calendar.manual_events`:
 
@@ -363,10 +376,10 @@ Para manter custo zero:
 - Use o plano Hobby.
 - Nao habilite add-ons pagos como Analytics Plus, Speed Insights pago, Blob, KV ou bancos pagos.
 - Nao configure credenciais BigQuery no frontend.
-- Mantenha `EVENT_MUTATIONS_ENABLED` ausente ou `0` no Vercel enquanto nao houver storage persistente gratuito definido.
+- Mantenha `EVENT_MUTATIONS_ENABLED=1` apenas quando `EVENTS_STORAGE=apps_script` estiver configurado com a URL do Web App.
 - Mantenha `ENABLE_REFRESH_LOOP` ausente ou `0` no Vercel, pois o ambiente e serverless.
 
-No Vercel, o dashboard consegue ler os JSONs mockados e a API FastAPI. A escrita compartilhada de eventos manuais fica desativada por padrao no deploy serverless sem storage persistente; quando a API recusa a escrita, o frontend cai para o fallback local do navegador e permite exportar/importar `eventos_manuais.json`.
+No Vercel, o dashboard consegue ler os JSONs versionados e a API FastAPI. A escrita compartilhada de eventos manuais deve usar `EVENTS_STORAGE=apps_script`; sem essa configuracao, o frontend cai para o fallback local do navegador e permite exportar/importar `eventos_manuais.json`.
 
 ## Cloud Run
 

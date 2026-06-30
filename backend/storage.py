@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any
+from urllib import error, parse, request
 from uuid import uuid4
 
 from .config import Settings
@@ -128,13 +129,102 @@ class BigQueryManualEventStore(LocalManualEventStore):
     """Placeholder enterprise: mantém a interface pronta para app_calendar.manual_events."""
 
 
-class GoogleSheetsManualEventStore(LocalManualEventStore):
-    """Placeholder MVP: mantém a interface pronta para trocar o storage por Sheets."""
+class AppsScriptManualEventStore:
+    """Storage compartilhado: usa Apps Script como ponte para Google Sheets."""
+
+    def __init__(self, settings: Settings):
+        if not settings.events_apps_script_url:
+            raise ValueError("EVENTS_APPS_SCRIPT_URL precisa estar configurada para EVENTS_STORAGE=apps_script.")
+        self.url = settings.events_apps_script_url
+
+    def list_events(self, include_deleted: bool = False) -> list[dict[str, Any]]:
+        payload = self._request_json(params={"includeDeleted": "1" if include_deleted else "0"})
+        events = payload.get("events", []) if isinstance(payload, dict) else []
+        normalized = [public_event(event) for event in events if isinstance(event, dict)]
+        if not include_deleted:
+            normalized = [event for event in normalized if is_active_event(event)]
+        return sorted(normalized, key=lambda item: str(item.get("data_inicio") or item.get("data") or ""))
+
+    def create_event(self, payload: dict[str, Any], user: str) -> dict[str, Any]:
+        response = self._request_json(
+            payload={
+                "action": "create",
+                "event": payload,
+                "user": user,
+            }
+        )
+        return public_event(response.get("event") or payload)
+
+    def update_event(self, event_id: str, payload: dict[str, Any], user: str) -> dict[str, Any] | None:
+        response = self._request_json(
+            payload={
+                "action": "update",
+                "event_id": event_id,
+                "event": payload,
+                "user": user,
+            }
+        )
+        event = response.get("event")
+        return public_event(event) if isinstance(event, dict) else None
+
+    def delete_event(self, event_id: str, user: str) -> dict[str, Any] | None:
+        response = self._request_json(
+            payload={
+                "action": "delete",
+                "event_id": event_id,
+                "user": user,
+            }
+        )
+        event = response.get("event")
+        return public_event(event) if isinstance(event, dict) else None
+
+    def _request_json(
+        self,
+        payload: dict[str, Any] | None = None,
+        params: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        url = self.url
+        if params:
+            separator = "&" if "?" in url else "?"
+            url = f"{url}{separator}{parse.urlencode(params)}"
+
+        data = None
+        headers = {"Accept": "application/json"}
+        method = "GET"
+        if payload is not None:
+            data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+            headers["Content-Type"] = "application/json; charset=utf-8"
+            method = "POST"
+
+        try:
+            remote_request = request.Request(url, data=data, headers=headers, method=method)
+            with request.urlopen(remote_request, timeout=45) as response:
+                raw_body = response.read().decode("utf-8")
+        except error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Apps Script respondeu HTTP {exc.code}: {detail}") from exc
+        except error.URLError as exc:
+            raise RuntimeError(f"Nao foi possivel acessar o Apps Script: {exc.reason}") from exc
+
+        try:
+            parsed = json.loads(raw_body or "{}")
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Apps Script retornou JSON invalido: {raw_body[:200]}") from exc
+
+        if isinstance(parsed, dict) and parsed.get("success") is False:
+            raise RuntimeError(str(parsed.get("error") or "Apps Script recusou a operacao."))
+        if not isinstance(parsed, dict):
+            raise RuntimeError("Apps Script precisa retornar um objeto JSON.")
+        return parsed
 
 
-def build_event_store(settings: Settings) -> LocalManualEventStore:
+class GoogleSheetsManualEventStore(AppsScriptManualEventStore):
+    """Alias operacional: Google Sheets entra pelo Web App do Apps Script."""
+
+
+def build_event_store(settings: Settings) -> LocalManualEventStore | AppsScriptManualEventStore:
     if settings.events_storage == "bigquery":
         return BigQueryManualEventStore(settings)
-    if settings.events_storage in {"sheets", "google_sheets"}:
+    if settings.events_storage in {"apps_script", "sheets", "google_sheets"}:
         return GoogleSheetsManualEventStore(settings)
     return LocalManualEventStore(settings)

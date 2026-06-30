@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 - 2026-06-30
+
+- Adicionada persistencia compartilhada de eventos manuais via Google Sheets e Apps Script.
+- Incluido Web App do Apps Script para criar, editar, excluir e exportar eventos manuais para o GitHub.
+- Adicionado storage `EVENTS_STORAGE=apps_script` no backend, usando `EVENTS_APPS_SCRIPT_URL` como proxy server-side.
+- Documentado o setup sem custo no Vercel e a explicacao linha a linha em `docs/EVENTOS_MANUAIS_APPS_SCRIPT.md`.
+
 ## 0.4.2 - 2026-06-30
 
 - Adicionado arquivo `data/metas_comerciais.json` para configurar metas oficiais mensais sem alterar codigo.

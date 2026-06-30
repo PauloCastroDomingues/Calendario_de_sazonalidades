@@ -16,6 +16,7 @@ class Settings:
     events_storage: str
     events_dataset: str
     events_table: str
+    events_apps_script_url: str
     enable_refresh_loop: bool
     event_mutations_enabled: bool
     host: str
@@ -35,6 +36,7 @@ class Settings:
             events_storage=os.getenv("EVENTS_STORAGE", "local").lower(),
             events_dataset=os.getenv("EVENTS_DATASET", "app_calendar"),
             events_table=os.getenv("EVENTS_TABLE", "manual_events"),
+            events_apps_script_url=os.getenv("EVENTS_APPS_SCRIPT_URL", ""),
             enable_refresh_loop=parse_bool(os.getenv("ENABLE_REFRESH_LOOP"), default=not is_vercel),
             event_mutations_enabled=parse_bool(os.getenv("EVENT_MUTATIONS_ENABLED"), default=not is_vercel),
             host=os.getenv("HOST", "127.0.0.1"),

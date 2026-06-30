@@ -1,8 +1,29 @@
-/* global BigQuery */
+/* global BigQuery, SpreadsheetApp */
 
 const TZ = "America/Sao_Paulo";
 const DEFAULT_LOOKBACK_DAYS = 760;
 const DEFAULT_MAX_BYTES_BILLED = "1073741824";
+const MANUAL_EVENTS_OUTPUT_PATH = "data/eventos_manuais.json";
+const EVENTS_SHEET_NAME = "eventos_manuais";
+const EVENTS_HEADER = [
+  "event_id",
+  "data_inicio",
+  "data_fim",
+  "titulo",
+  "tipo",
+  "categoria",
+  "produto_relacionado",
+  "campanha_relacionada",
+  "prioridade",
+  "responsavel",
+  "observacao",
+  "status",
+  "created_by",
+  "created_at",
+  "updated_by",
+  "updated_at",
+  "deleted_at",
+];
 
 const EXPORTS = [
   {
@@ -199,6 +220,20 @@ function testarDadosD1() {
   return executarExportacaoD1_({ dryRun: true });
 }
 
+function instalarBaseEventosManuais() {
+  const sheet = getManualEventsSheet_();
+  console.log(`Base pronta: ${sheet.getParent().getUrl()} / aba ${EVENTS_SHEET_NAME}`);
+  return {
+    spreadsheet_url: sheet.getParent().getUrl(),
+    sheet_name: EVENTS_SHEET_NAME,
+    columns: EVENTS_HEADER,
+  };
+}
+
+function exportarEventosManuais() {
+  return commitEventosManuaisToGithub_("Update manual events");
+}
+
 function instalarTriggerDiario() {
   removerTriggers_("atualizarDadosD1");
   ScriptApp.newTrigger("atualizarDadosD1").timeBased().everyDays(1).atHour(7).create();
@@ -240,6 +275,22 @@ function executarExportacaoD1_(options) {
     console.log(`${item.name} (${item.location}): ${result.rows.length} linha(s), ${result.bytesProcessed} bytes`);
   });
 
+  const manualEvents = getManualEventsForExport_();
+  manifest.files["eventos_manuais.json"] = {
+    rows: manualEvents.rows.length,
+    bytes_processed: 0,
+    location: manualEvents.enabled ? "google_sheets" : "not_configured",
+    updated: !dryRun && manualEvents.enabled,
+  };
+  if (manualEvents.enabled) {
+    console.log(`eventos_manuais (google_sheets): ${manualEvents.rows.length} linha(s)`);
+    if (!dryRun) {
+      payloads[MANUAL_EVENTS_OUTPUT_PATH] = toPrettyJson_(manualEvents.rows);
+    }
+  } else {
+    console.log("eventos_manuais: EVENTS_SPREADSHEET_ID nao configurado; JSON atual mantido.");
+  }
+
   if (dryRun) {
     console.log("Dry run concluido. Nenhum arquivo foi enviado ao GitHub.");
     return manifest;
@@ -250,6 +301,58 @@ function executarExportacaoD1_(options) {
   const commit = commitFilesToGithub_(config, payloads, message);
   console.log(`Commit criado: ${commit.html_url || commit.sha}`);
   return manifest;
+}
+
+function doGet(e) {
+  try {
+    const params = (e && e.parameter) || {};
+    if (params.action === "health") {
+      return jsonResponse_({
+        success: true,
+        storage: "google_sheets",
+        sheet_configured: hasEventsSpreadsheet_(),
+      });
+    }
+    return jsonResponse_({
+      success: true,
+      events: readManualEvents_({ includeDeleted: params.includeDeleted === "1" }),
+    });
+  } catch (error) {
+    return jsonResponse_({ success: false, error: String(error) });
+  }
+}
+
+function doPost(e) {
+  try {
+    const body = parseRequestBody_(e);
+    const action = String(body.action || "create").toLowerCase();
+    const user = body.user || body.responsavel || body.updated_by || "apps-script";
+    let event = null;
+
+    if (action === "create") {
+      event = createManualEvent_(body.event || body, user);
+    } else if (action === "update") {
+      event = updateManualEvent_(body.event_id || body.id, body.event || body, user);
+      if (!event) throw new Error("Evento manual nao encontrado.");
+    } else if (action === "delete") {
+      event = deleteManualEvent_(body.event_id || body.id, user);
+      if (!event) throw new Error("Evento manual nao encontrado.");
+    } else if (action === "export") {
+      return jsonResponse_({ success: true, action: action, export: commitEventosManuaisToGithub_("Update manual events") });
+    } else {
+      throw new Error(`Acao invalida: ${action}`);
+    }
+
+    const exportResult = body.sync_github === false ? null : commitEventosManuaisToGithub_(`Update manual events (${action})`);
+    return jsonResponse_({
+      success: true,
+      action: action,
+      event: event,
+      export: exportResult,
+    });
+  } catch (error) {
+    return jsonResponse_({ success: false, error: String(error) });
+  }
 }
 
 function runBigQuery_(projectId, item, startDate, endDate, maxBytesBilled, dryRun) {
@@ -353,6 +456,217 @@ function castBigQueryValue_(value, field) {
     default:
       return value;
   }
+}
+
+function getManualEventsForExport_() {
+  if (!hasEventsSpreadsheet_()) {
+    return { enabled: false, rows: [] };
+  }
+  return { enabled: true, rows: readManualEvents_({ includeDeleted: false }) };
+}
+
+function commitEventosManuaisToGithub_(message) {
+  const events = readManualEvents_({ includeDeleted: false });
+  const payloads = {};
+  payloads[MANUAL_EVENTS_OUTPUT_PATH] = toPrettyJson_(events);
+  const commit = commitFilesToGithub_(getConfig_(), payloads, message || "Update manual events");
+  console.log(`Eventos manuais exportados: ${events.length} linha(s)`);
+  return {
+    rows: events.length,
+    commit: commit.sha || "",
+    url: commit.html_url || "",
+  };
+}
+
+function readManualEvents_(options) {
+  const includeDeleted = Boolean(options && options.includeDeleted);
+  const sheet = getManualEventsSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, EVENTS_HEADER.length).getValues();
+  return rows
+    .map(eventRowToObject_)
+    .filter((event) => event.event_id)
+    .filter((event) => includeDeleted || isActiveManualEvent_(event))
+    .sort((a, b) => String(a.data_inicio || "").localeCompare(String(b.data_inicio || "")));
+}
+
+function createManualEvent_(payload, user) {
+  const sheet = getManualEventsSheet_();
+  const event = normalizeManualEventPayload_(payload, null, user);
+  const existingRow = findManualEventRow_(sheet, event.event_id);
+  if (existingRow > 0) {
+    sheet.getRange(existingRow, 1, 1, EVENTS_HEADER.length).setValues([eventObjectToRow_(event)]);
+  } else {
+    sheet.appendRow(eventObjectToRow_(event));
+  }
+  return event;
+}
+
+function updateManualEvent_(eventId, payload, user) {
+  if (!eventId) throw new Error("Informe event_id para atualizar.");
+  const sheet = getManualEventsSheet_();
+  const row = findManualEventRow_(sheet, eventId);
+  if (row < 1) return null;
+
+  const existing = eventRowToObject_(sheet.getRange(row, 1, 1, EVENTS_HEADER.length).getValues()[0]);
+  const event = normalizeManualEventPayload_({ ...payload, event_id: eventId }, existing, user);
+  sheet.getRange(row, 1, 1, EVENTS_HEADER.length).setValues([eventObjectToRow_(event)]);
+  return event;
+}
+
+function deleteManualEvent_(eventId, user) {
+  if (!eventId) throw new Error("Informe event_id para excluir.");
+  const sheet = getManualEventsSheet_();
+  const row = findManualEventRow_(sheet, eventId);
+  if (row < 1) return null;
+
+  const now = new Date().toISOString();
+  const existing = eventRowToObject_(sheet.getRange(row, 1, 1, EVENTS_HEADER.length).getValues()[0]);
+  const event = {
+    ...existing,
+    event_id: eventId,
+    status: "Excluido",
+    updated_by: user,
+    updated_at: now,
+    deleted_at: existing.deleted_at || now,
+  };
+  sheet.getRange(row, 1, 1, EVENTS_HEADER.length).setValues([eventObjectToRow_(event)]);
+  return event;
+}
+
+function normalizeManualEventPayload_(payload, existing, user) {
+  payload = payload || {};
+  const now = new Date().toISOString();
+  const base = existing || {};
+  const eventId = pickManualEventValue_(payload, base, ["event_id", "id"], `manual_${Utilities.getUuid().replace(/-/g, "").slice(0, 16)}`);
+  const startDate = normalizeDateValue_(pickManualEventValue_(payload, base, ["data_inicio", "data"], ""));
+  if (!startDate) throw new Error("data_inicio e obrigatoria.");
+
+  const endDate = normalizeDateValue_(pickManualEventValue_(payload, base, ["data_fim", "janela_fim"], "")) || startDate;
+  const title = cleanText_(pickManualEventValue_(payload, base, ["titulo", "nome_evento"], ""));
+  if (!title) throw new Error("titulo e obrigatorio.");
+
+  return {
+    event_id: eventId,
+    data_inicio: startDate,
+    data_fim: endDate < startDate ? startDate : endDate,
+    titulo: title,
+    tipo: cleanText_(pickManualEventValue_(payload, base, ["tipo", "tipo_evento"], "Campanha")),
+    categoria: cleanText_(pickManualEventValue_(payload, base, ["categoria"], "")),
+    produto_relacionado: cleanText_(pickManualEventValue_(payload, base, ["produto_relacionado"], "")),
+    campanha_relacionada: cleanText_(pickManualEventValue_(payload, base, ["campanha_relacionada"], "")),
+    prioridade: cleanText_(pickManualEventValue_(payload, base, ["prioridade"], "Media")),
+    responsavel: cleanText_(pickManualEventValue_(payload, base, ["responsavel"], user)),
+    observacao: cleanText_(pickManualEventValue_(payload, base, ["observacao"], "")),
+    status: cleanText_(pickManualEventValue_(payload, base, ["status"], "Ativo")),
+    created_by: cleanText_(base.created_by || pickManualEventValue_(payload, base, ["created_by"], user)),
+    created_at: cleanText_(base.created_at || pickManualEventValue_(payload, base, ["created_at"], now)),
+    updated_by: cleanText_(user || pickManualEventValue_(payload, base, ["updated_by"], "")),
+    updated_at: now,
+    deleted_at: cleanText_(pickManualEventValue_(payload, base, ["deleted_at"], "")),
+  };
+}
+
+function getManualEventsSheet_() {
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty("EVENTS_SPREADSHEET_ID");
+  if (!spreadsheetId) {
+    throw new Error("Configure a propriedade do script: EVENTS_SPREADSHEET_ID");
+  }
+
+  const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
+  let sheet = spreadsheet.getSheetByName(EVENTS_SHEET_NAME);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(EVENTS_SHEET_NAME);
+  }
+  ensureManualEventsHeader_(sheet);
+  return sheet;
+}
+
+function ensureManualEventsHeader_(sheet) {
+  sheet.getRange(1, 1, 1, EVENTS_HEADER.length).setValues([EVENTS_HEADER]);
+  sheet.setFrozenRows(1);
+}
+
+function findManualEventRow_(sheet, eventId) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return -1;
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  for (let index = 0; index < ids.length; index += 1) {
+    if (String(ids[index][0]) === String(eventId)) {
+      return index + 2;
+    }
+  }
+  return -1;
+}
+
+function eventRowToObject_(row) {
+  const event = {};
+  EVENTS_HEADER.forEach((field, index) => {
+    event[field] = normalizeSheetValue_(row[index], field);
+  });
+  event.id = event.event_id;
+  return event;
+}
+
+function eventObjectToRow_(event) {
+  return EVENTS_HEADER.map((field) => event[field] || "");
+}
+
+function normalizeSheetValue_(value, field) {
+  if (value === null || value === undefined) return "";
+  if (value instanceof Date) {
+    if (field === "data_inicio" || field === "data_fim") {
+      return Utilities.formatDate(value, TZ, "yyyy-MM-dd");
+    }
+    return Utilities.formatDate(value, "UTC", "yyyy-MM-dd'T'HH:mm:ss'Z'");
+  }
+  return String(value).trim();
+}
+
+function normalizeDateValue_(value) {
+  if (!value) return "";
+  if (value instanceof Date) return Utilities.formatDate(value, TZ, "yyyy-MM-dd");
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return Utilities.formatDate(parsed, TZ, "yyyy-MM-dd");
+}
+
+function isActiveManualEvent_(event) {
+  return !event.deleted_at && String(event.status || "").toLowerCase() !== "excluido";
+}
+
+function cleanText_(value) {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function pickManualEventValue_(payload, existing, keys, fallback) {
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index];
+    if (Object.prototype.hasOwnProperty.call(payload, key)) return payload[key];
+  }
+  for (let index = 0; index < keys.length; index += 1) {
+    const key = keys[index];
+    if (existing && Object.prototype.hasOwnProperty.call(existing, key)) return existing[key];
+  }
+  return fallback;
+}
+
+function hasEventsSpreadsheet_() {
+  return Boolean(PropertiesService.getScriptProperties().getProperty("EVENTS_SPREADSHEET_ID"));
+}
+
+function parseRequestBody_(e) {
+  const contents = e && e.postData && e.postData.contents ? e.postData.contents : "{}";
+  return JSON.parse(contents || "{}");
+}
+
+function jsonResponse_(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
 }
 
 function commitFilesToGithub_(config, payloads, message) {

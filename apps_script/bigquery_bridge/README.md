@@ -21,14 +21,17 @@ Configure em `Configuracoes do projeto > Propriedades do script`:
 ```text
 BQ_PROJECT_ID=reise-ssot
 GITHUB_OWNER=PauloCastroDomingues
-GITHUB_REPO=Calandario_de_sazonalidades
+GITHUB_REPO=Calendario_de_sazonalidades
 GITHUB_BRANCH=main
 GITHUB_TOKEN=<novo_token_github>
 LOOKBACK_DAYS=760
 BQ_MAX_BYTES_BILLED=1073741824
+EVENTS_SPREADSHEET_ID=<id_da_planilha_de_eventos>
 ```
 
 `START_DATE` e `END_DATE` sao opcionais para backfill manual. Remova essas propriedades depois do backfill para voltar ao D-1 automatico.
+
+`EVENTS_SPREADSHEET_ID` e opcional para o BigQuery D-1, mas obrigatorio para eventos manuais compartilhados. O ID fica na URL da planilha, entre `/d/` e `/edit`.
 
 ## 4. Testar
 
@@ -41,3 +44,58 @@ BQ_MAX_BYTES_BILLED=1073741824
 ## 5. Agendar
 
 Rode `instalarTriggerDiario` uma vez. O trigger passa a executar `atualizarDadosD1` diariamente por volta de 07:00 no fuso `America/Sao_Paulo`.
+
+## 6. Eventos manuais compartilhados
+
+Os eventos manuais podem ser armazenados em uma Google Sheet e exportados para `data/eventos_manuais.json`.
+
+Fluxo:
+
+1. Crie uma Google Sheet para os eventos.
+2. Copie o ID da planilha.
+3. Salve `EVENTS_SPREADSHEET_ID` nas propriedades do Apps Script.
+4. Rode `instalarBaseEventosManuais`.
+5. A funcao cria a aba `eventos_manuais` com as colunas oficiais.
+6. Rode `exportarEventosManuais` para gerar apenas o JSON de eventos.
+7. Rode `atualizarDadosD1` para atualizar BigQuery D-1 e eventos manuais no mesmo commit.
+
+Colunas da aba:
+
+```text
+event_id
+data_inicio
+data_fim
+titulo
+tipo
+categoria
+produto_relacionado
+campanha_relacionada
+prioridade
+responsavel
+observacao
+status
+created_by
+created_at
+updated_by
+updated_at
+deleted_at
+```
+
+## 7. Web App para escrita pelo dashboard
+
+Para permitir criar, editar e excluir eventos pelo dashboard:
+
+1. No Apps Script, clique em `Implantar > Nova implantacao`.
+2. Escolha `App da Web`.
+3. Execute como: sua conta com acesso a planilha e ao GitHub.
+4. Quem tem acesso: a opcao interna mais restrita que funcione para o time.
+5. Copie a URL terminada em `/exec`.
+6. Configure no Vercel:
+
+```text
+EVENTS_STORAGE=apps_script
+EVENTS_APPS_SCRIPT_URL=<url_do_web_app>
+EVENT_MUTATIONS_ENABLED=1
+```
+
+Com isso, o navegador continua chamando `/api/events`; o backend chama o Apps Script; o Apps Script grava na planilha e atualiza `data/eventos_manuais.json` no GitHub.
