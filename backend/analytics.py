@@ -43,6 +43,8 @@ def build_analytics(payload: dict[str, Any], today: date | None = None) -> dict[
     campanhas = [row for row in payload.get("campanhas", []) or [] if date_in_window(row.get("data"), None, cutoff)]
     estoque = payload.get("estoque", []) or []
     eventos_manuais = payload.get("eventos_manuais") or payload.get("eventosManuais") or []
+    metas = payload.get("metas") or payload.get("metas_comerciais") or {}
+    manifest = payload.get("manifest") or {}
 
     month_start = cutoff.replace(day=1)
     month_end = cutoff.replace(day=monthrange(cutoff.year, cutoff.month)[1])
@@ -56,6 +58,7 @@ def build_analytics(payload: dict[str, Any], today: date | None = None) -> dict[
         usable_kpis=usable_kpis,
         month_rows=month_rows,
         calendario=calendario,
+        metas=metas,
         cutoff=cutoff,
         month_start=month_start,
         month_end=month_end,
@@ -65,6 +68,8 @@ def build_analytics(payload: dict[str, Any], today: date | None = None) -> dict[
     stock_signals = build_stock_signals(last_30_products, estoque)
     campaign_signals = build_campaign_signals(last_14_campaigns)
     readiness_playbook = build_readiness_playbook(upcoming_events, forecast, stock_signals, campaign_signals)
+    action_plan = build_action_plan(readiness_playbook, cutoff)
+    automation_health = build_automation_health(manifest, cutoff)
     signals = build_signals(trends, forecast, upcoming_events, stock_signals, campaign_signals)
     recommendations = build_recommendations(forecast, upcoming_events, stock_signals, campaign_signals)
 
@@ -81,6 +86,8 @@ def build_analytics(payload: dict[str, Any], today: date | None = None) -> dict[
         "signals": signals[:6],
         "upcoming_events": upcoming_events[:6],
         "readiness_playbook": readiness_playbook[:4],
+        "action_plan": action_plan[:8],
+        "automation_health": automation_health,
         "recommendations": recommendations[:6],
         "diagnostic": build_diagnostic(forecast, trends, upcoming_events),
     }
@@ -96,6 +103,8 @@ def empty_analytics() -> dict[str, Any]:
         "signals": [],
         "upcoming_events": [],
         "readiness_playbook": [],
+        "action_plan": [],
+        "automation_health": {},
         "recommendations": [],
         "diagnostic": "Sem dados suficientes para gerar previsao.",
     }
@@ -111,10 +120,21 @@ def resolve_data_cutoff(kpis: list[dict[str, Any]], today: date | None = None) -
     return available_dates[-1] if available_dates else None
 
 
+def resolve_monthly_target(metas: dict[str, Any], month_start: date) -> dict[str, Any]:
+    if not isinstance(metas, dict):
+        return {}
+    target_month = f"{month_start.year:04d}-{month_start.month:02d}"
+    for row in metas.get("monthly_targets", []) or []:
+        if str(row.get("month") or "") == target_month:
+            return row
+    return {}
+
+
 def build_revenue_forecast(
     usable_kpis: list[dict[str, Any]],
     month_rows: list[dict[str, Any]],
     calendario: list[dict[str, Any]],
+    metas: dict[str, Any],
     cutoff: date,
     month_start: date,
     month_end: date,
@@ -139,7 +159,7 @@ def build_revenue_forecast(
     forecast_revenue = realized_revenue + remaining_estimate
     previous_month_revenue = revenue_for_month(usable_kpis, shift_month(month_start, -1))
     previous_year_revenue = revenue_for_month(usable_kpis, month_start.replace(year=month_start.year - 1))
-    suggested_target = max(
+    model_target = max(
         value
         for value in (
             previous_month_revenue * 1.03 if previous_month_revenue else 0,
@@ -147,6 +167,9 @@ def build_revenue_forecast(
             realized_revenue,
         )
     )
+    target_config = resolve_monthly_target(metas, month_start)
+    configured_target = number(target_config.get("target_revenue"))
+    suggested_target = configured_target if configured_target > 0 else model_target
     target_coverage = safe_divide(forecast_revenue, suggested_target)
 
     if target_coverage is None or target_coverage >= 1:
@@ -172,6 +195,11 @@ def build_revenue_forecast(
         "forecast_revenue": round(forecast_revenue, 2),
         "remaining_revenue": round(max(forecast_revenue - realized_revenue, 0), 2),
         "suggested_target": round(suggested_target, 2),
+        "model_target": round(model_target, 2),
+        "target_source": "oficial" if configured_target > 0 else "referencia_sugerida",
+        "target_label": target_config.get("label") or f"Referencia {MONTH_NAMES[cutoff.month - 1]} {cutoff.year}",
+        "target_owner": target_config.get("owner") or "Comercial",
+        "target_status": target_config.get("status") or ("configurada" if configured_target > 0 else "sugerida"),
         "target_coverage": round(target_coverage or 0, 4),
         "daily_pace": round(daily_pace, 2),
         "daily_required": round(daily_required or 0, 2),
@@ -435,6 +463,90 @@ def readiness_status(score: int) -> str:
     if score < 90:
         return "em preparo"
     return "monitorar"
+
+
+def build_action_plan(readiness_playbook: list[dict[str, Any]], cutoff: date) -> list[dict[str, Any]]:
+    offsets = {
+        "Meta e oferta": 30,
+        "Estoque": 21,
+        "Midia e CRM": 14,
+        "Criativos e calendario": 10,
+    }
+    actions = {
+        "Meta e oferta": "Validar meta, oferta e margem da data",
+        "Estoque": "Conferir cobertura, ruptura e reposicao dos produtos prioritarios",
+        "Midia e CRM": "Revisar verba, segmentacao, CRM e calendario de disparos",
+        "Criativos e calendario": "Fechar criativos, briefing e agenda operacional",
+    }
+    rows: list[dict[str, Any]] = []
+    for item in readiness_playbook:
+        event_date = parse_date(item.get("date"))
+        if not event_date:
+            continue
+        for task in item.get("checklist", []) or []:
+            area = str(task.get("area") or "")
+            status = str(task.get("status") or "planejar")
+            if status == "ok":
+                continue
+            due_date = event_date - timedelta(days=offsets.get(area, 14))
+            overdue = due_date <= cutoff and status not in {"ok", "concluido"}
+            rows.append(
+                {
+                    "event_name": item.get("name"),
+                    "event_date": item.get("date"),
+                    "area": area,
+                    "owner": task.get("owner") or "Comercial",
+                    "status": "atrasado" if overdue else status,
+                    "due_date": due_date.isoformat(),
+                    "action": actions.get(area, str(item.get("main_action") or "Revisar preparacao comercial")),
+                    "priority": item.get("priority", 50),
+                }
+            )
+    return sorted(rows, key=lambda row: (row["due_date"], -number(row.get("priority")), row["area"]))
+
+
+def build_automation_health(manifest: dict[str, Any], cutoff: date) -> dict[str, Any]:
+    if not isinstance(manifest, dict) or not manifest:
+        return {
+            "status": "atencao",
+            "label": "Manifesto de atualizacao ausente",
+            "detail": "Sem data/linha de execucao D-1 para auditar.",
+        }
+
+    end_date = parse_date(manifest.get("end_date"))
+    files = manifest.get("files", {}) if isinstance(manifest.get("files"), dict) else {}
+    total_rows = sum(number(item.get("rows")) for item in files.values() if isinstance(item, dict))
+    total_bytes = sum(number(item.get("bytes_processed")) for item in files.values() if isinstance(item, dict))
+    missing_or_empty = [
+        name
+        for name, item in files.items()
+        if isinstance(item, dict) and number(item.get("rows")) <= 0 and name != "manifest.json"
+    ]
+
+    if not end_date or end_date < cutoff:
+        status = "atencao"
+        label = "Dados D-1 atrasados"
+    elif missing_or_empty:
+        status = "atencao"
+        label = "Carga D-1 com arquivos vazios"
+    else:
+        status = "ok"
+        label = "Automacao D-1 saudavel"
+
+    return {
+        "status": status,
+        "label": label,
+        "generated_at": manifest.get("generated_at"),
+        "data_end": manifest.get("end_date"),
+        "mode": manifest.get("mode"),
+        "project_id": manifest.get("project_id"),
+        "total_files": len(files),
+        "total_rows": round(total_rows),
+        "bytes_processed": round(total_bytes),
+        "max_bytes_billed": manifest.get("max_bytes_billed"),
+        "empty_files": missing_or_empty,
+        "detail": f"{round(total_rows)} linhas em {len(files)} arquivo(s), ate {manifest.get('end_date') or '-'}",
+    }
 
 
 def build_signals(

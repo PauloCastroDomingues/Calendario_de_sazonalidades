@@ -75,6 +75,8 @@ O objetivo é transformar o calendário em um braço analítico e preditivo:
 - sinais executivos de receita, conversão, mídia, estoque e calendário;
 - próximas datas sazonais com contagem regressiva;
 - playbook de prontidão sazonal por data;
+- plano de ação com dono, prazo e status;
+- saúde da automação D-1 com base em `data/manifest.json`;
 - movimentos sugeridos antes de campanhas e datas comerciais.
 
 O fluxo oficial sem custo adicional é:
@@ -129,6 +131,48 @@ BQ_MAX_BYTES_BILLED=1073741824
 ```
 
 O `--dry-run` estima bytes processados sem alterar os JSONs. A execução real grava os arquivos em `data/` e atualiza `data/manifest.json`.
+
+### Metas comerciais
+
+Metas oficiais podem ser configuradas em:
+
+```text
+data/metas_comerciais.json
+```
+
+Enquanto não houver meta oficial, o backend usa uma referência sugerida baseada em histórico e ritmo atual. Quando uma meta mensal for preenchida, a previsão passa a comparar contra ela automaticamente.
+
+Exemplo:
+
+```json
+{
+  "monthly_targets": [
+    {
+      "month": "2026-08",
+      "target_revenue": 3500000,
+      "label": "Meta Agosto 2026",
+      "owner": "Comercial",
+      "status": "aprovada"
+    }
+  ]
+}
+```
+
+### Saude da automacao
+
+O arquivo `data/manifest.json` é usado para auditar a carga D-1:
+
+- data final carregada;
+- quantidade de arquivos;
+- total de linhas;
+- modo de atualização;
+- alertas quando a carga estiver atrasada ou vazia.
+
+Essa leitura aparece no bloco de inteligência comercial para facilitar a checagem diária antes da reunião comercial.
+
+### Privacidade dos dados
+
+Os JSONs em `data/` carregam dados comerciais. Para uso interno, mantenha o repositório e o deploy com acesso controlado. Não publique este projeto como site público sem antes trocar a estratégia de distribuição dos dados ou adicionar uma camada de autenticação.
 
 ## Navegação do calendário
 

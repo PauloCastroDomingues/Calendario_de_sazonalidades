@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.2 - 2026-06-30
+
+- Adicionado arquivo `data/metas_comerciais.json` para configurar metas oficiais mensais sem alterar codigo.
+- Atualizada a previsao para usar meta oficial quando houver configuracao; sem meta, segue usando referencia sugerida.
+- Incluida leitura de saude da automacao D-1 a partir de `data/manifest.json`.
+- Adicionado plano de acao executivo ao dashboard, com dono, prazo e status derivados do playbook sazonal.
+- Documentados uso de metas, auditoria da automacao e cuidado com privacidade dos JSONs comerciais.
+
 ## 0.4.1 - 2026-06-30
 
 - Reposicionado o projeto como central de prontidao comercial sazonal, evitando sobreposicao com frentes de BI, midia e funil.

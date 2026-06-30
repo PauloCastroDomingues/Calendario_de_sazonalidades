@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Calendário Comercial Reise</title>
-    <link rel="stylesheet" href="src/style.css?v=0.4.1" />
+    <link rel="stylesheet" href="src/style.css?v=0.4.2" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="src/app.js?v=0.4.1" defer></script>
+    <script src="src/app.js?v=0.4.2" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -354,6 +354,7 @@
         </div>
 
         <p id="analyticsDiagnostic" class="intelligence-diagnostic"></p>
+        <div id="automationHealth" class="automation-health" hidden></div>
 
         <div class="intelligence-columns">
           <div>
@@ -376,6 +377,14 @@
             <span>Foco em decisao antes da proxima data comercial</span>
           </div>
           <div id="readinessPlaybookList" class="readiness-list"></div>
+        </div>
+
+        <div class="action-plan-panel" aria-label="Plano de acao executivo">
+          <div class="readiness-heading">
+            <h3>Plano de acao</h3>
+            <span>Dono, prazo e status para fechar a preparacao</span>
+          </div>
+          <ul id="actionPlanList" class="action-plan-list"></ul>
         </div>
       </section>
 

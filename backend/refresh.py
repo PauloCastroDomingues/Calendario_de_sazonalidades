@@ -19,6 +19,8 @@ DATA_FILES = {
     "campanhas": "campanhas_dia.json",
     "utms": "utms_dia.json",
     "estoque": "estoque.json",
+    "metas": "metas_comerciais.json",
+    "manifest": "manifest.json",
 }
 
 
@@ -124,11 +126,11 @@ class RefreshService:
         source_status["analytics"] = "ok"
         return payload, source_status
 
-    def _read_json(self, file_path: Path) -> list[dict[str, Any]]:
+    def _read_json(self, file_path: Path) -> Any:
         if not file_path.exists():
             return []
         data = json.loads(file_path.read_text(encoding="utf-8") or "[]")
-        return data if isinstance(data, list) else []
+        return data
 
     def _write_consolidated(self, payload: dict[str, Any]) -> str:
         output = self.settings.data_dir / "consolidado.json"

@@ -1291,6 +1291,48 @@ textarea {
   padding-top: 12px;
 }
 
+.automation-health {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.5fr);
+  gap: 14px;
+  border: 1px solid var(--gray-100);
+  border-left: 4px solid var(--green-700);
+  border-radius: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.automation-health span {
+  color: var(--gray-500);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.automation-health strong {
+  color: var(--green-900);
+}
+
+.automation-health > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.automation-health-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.automation-health-grid span {
+  border-left: 1px solid var(--gray-100);
+  padding-left: 8px;
+}
+
+.automation-atencao {
+  border-left-color: #8b6424;
+}
+
 .intelligence-columns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1501,6 +1543,56 @@ textarea {
 
 .task-ok {
   color: #174637 !important;
+}
+
+.action-plan-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  border-top: 1px solid var(--gray-100);
+  padding-top: 16px;
+}
+
+.action-plan-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.action-plan-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(150px, 0.85fr);
+  gap: 10px;
+  border: 1px solid var(--gray-100);
+  border-left: 4px solid var(--green-700);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.action-plan-list strong {
+  color: var(--green-900);
+  font-size: 0.84rem;
+}
+
+.action-plan-list span {
+  display: block;
+  margin-top: 3px;
+  color: var(--gray-600);
+  font-size: 0.74rem;
+}
+
+.action-atrasado,
+.action-revisar,
+.action-acao-imediata {
+  border-left-color: #9b3e37 !important;
+}
+
+.action-planejar {
+  border-left-color: #8b6424 !important;
 }
 
 .signal-label {
@@ -1849,8 +1941,15 @@ td span {
 
   .intelligence-kpis,
   .intelligence-columns,
-  .readiness-list {
+  .readiness-list,
+  .action-plan-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .automation-health,
+  .automation-health-grid,
+  .action-plan-list li {
+    grid-template-columns: 1fr;
   }
 
   .intelligence-primary {
@@ -1906,7 +2005,11 @@ td span {
   .intelligence-kpis,
   .intelligence-columns,
   .readiness-list,
-  .readiness-checklist {
+  .readiness-checklist,
+  .automation-health,
+  .automation-health-grid,
+  .action-plan-list,
+  .action-plan-list li {
     grid-template-columns: 1fr;
   }
 

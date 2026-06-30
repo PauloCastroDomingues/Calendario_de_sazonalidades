@@ -1,0 +1,10 @@
+{
+  "updated_at": "2026-06-30",
+  "monthly_targets": [],
+  "seasonal_targets": [],
+  "notes": [
+    "Preencha monthly_targets para usar metas oficiais na previsao.",
+    "Formato monthly_targets: {\"month\":\"2026-08\",\"target_revenue\":3500000,\"label\":\"Meta Agosto 2026\",\"owner\":\"Comercial\",\"status\":\"aprovada\"}.",
+    "Enquanto nao houver meta oficial, o dashboard usa referencia sugerida baseada em historico e ritmo atual."
+  ]
+}

@@ -6,6 +6,8 @@ const DATA_FILES = {
   campanhas: { path: "data/campanhas_dia.json" },
   utms: { path: "data/utms_dia.json" },
   estoque: { path: "data/estoque.json" },
+  metas: { path: "data/metas_comerciais.json", optional: true },
+  manifest: { path: "data/manifest.json", optional: true },
   eventosManuais: { path: "data/eventos_manuais.json", optional: true },
 };
 
@@ -428,6 +430,8 @@ function normalizeCalendarPayload(payload = {}) {
     campanhas: payload.campanhas || [],
     utms: payload.utms || [],
     estoque: payload.estoque || [],
+    metas: payload.metas || {},
+    manifest: payload.manifest || {},
     eventosManuais: normalizeManualEventsList(payload.eventos_manuais || payload.eventosManuais || []),
     analytics: payload.analytics || null,
   };
@@ -927,12 +931,13 @@ function renderExecutiveIntelligence() {
   panel.hidden = false;
   document.getElementById("forecastRevenue").textContent = formatCurrency(forecast.forecast_revenue);
   document.getElementById("forecastMeta").textContent =
-    `${forecast.month_label || "-"} · ${formatInteger(forecast.elapsed_days)} de ${formatInteger(forecast.total_days)} dias · confiança ${forecast.confidence || "-"}`;
+    `${forecast.month_label || "-"} · ${formatInteger(forecast.elapsed_days)} de ${formatInteger(forecast.total_days)} dias · ${targetSourceLabel(forecast)} · confiança ${forecast.confidence || "-"}`;
   document.getElementById("forecastCoverage").textContent = formatPercent(Number(forecast.target_coverage || 0));
   document.getElementById("forecastRemaining").textContent = formatCurrency(forecast.remaining_revenue);
   document.getElementById("forecastCutoff").textContent =
     analytics.data_cutoff ? `Dados até ${formatShortDate(analytics.data_cutoff)} · D-1` : "Dados até D-1";
   document.getElementById("analyticsDiagnostic").textContent = analytics.diagnostic || "";
+  renderAutomationHealth(analytics.automation_health || {});
 
   const risk = slug(forecast.risk_level || "indefinido");
   const riskLabel = document.getElementById("forecastRisk");
@@ -951,6 +956,36 @@ function renderExecutiveIntelligence() {
   if (readinessList) {
     readinessList.innerHTML = renderReadinessPlaybookItems(analytics.readiness_playbook || []);
   }
+  const actionPlanList = document.getElementById("actionPlanList");
+  if (actionPlanList) {
+    actionPlanList.innerHTML = renderActionPlanItems(analytics.action_plan || []);
+  }
+}
+
+function renderAutomationHealth(health = {}) {
+  const target = document.getElementById("automationHealth");
+  if (!target || !Object.keys(health).length) return;
+  target.hidden = false;
+  target.className = `automation-health automation-${slug(health.status || "atencao")}`;
+  target.innerHTML = `
+    <div>
+      <span>Automacao D-1</span>
+      <strong>${escapeHtml(health.label || "-")}</strong>
+    </div>
+    <div class="automation-health-grid">
+      <span>Fim dados: <strong>${formatShortDate(health.data_end)}</strong></span>
+      <span>Linhas: <strong>${formatInteger(health.total_rows || 0)}</strong></span>
+      <span>Arquivos: <strong>${formatInteger(health.total_files || 0)}</strong></span>
+      <span>Modo: <strong>${escapeHtml(health.mode || "-")}</strong></span>
+    </div>
+  `;
+}
+
+function targetSourceLabel(forecast = {}) {
+  if (forecast.target_source === "oficial") {
+    return `meta oficial: ${forecast.target_label || "configurada"}`;
+  }
+  return "referencia sugerida";
 }
 
 function renderSignalItems(signals = []) {
@@ -1047,6 +1082,30 @@ function renderReadinessPlaybookItems(items = []) {
         </article>
       `;
     })
+    .join("");
+}
+
+function renderActionPlanItems(items = []) {
+  if (!items.length) {
+    return `<li><strong>Sem acao pendente</strong><span>O playbook nao encontrou pendencias executivas para as proximas datas.</span></li>`;
+  }
+
+  return items
+    .map(
+      (item) => `
+        <li class="action-${slug(item.status || "planejar")}">
+          <div>
+            <strong>${escapeHtml(item.action || "-")}</strong>
+            <span>${escapeHtml(item.event_name || "-")} &middot; ${escapeHtml(item.area || "-")}</span>
+          </div>
+          <div>
+            <span>Dono: <strong>${escapeHtml(item.owner || "-")}</strong></span>
+            <span>Prazo: <strong>${formatShortDate(item.due_date)}</strong></span>
+            <span>Status: <strong>${escapeHtml(item.status || "-")}</strong></span>
+          </div>
+        </li>
+      `
+    )
     .join("");
 }
 
