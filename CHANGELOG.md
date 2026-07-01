@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.4 - 2026-07-01
+
+- Removidos os documentos de validacao BigQuery para reduzir ruido operacional.
+- Removida do README a secao de validacao cruzada, mantendo apenas os artefatos tecnicos em `queries/` e `scripts/`.
+
 ## 0.5.3 - 2026-07-01
 
 - Corrigida a validacao manual BigQuery para que cada bloco SQL rode de forma independente com `WITH params`.
