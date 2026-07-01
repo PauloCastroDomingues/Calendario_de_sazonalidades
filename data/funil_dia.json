@@ -1447,5 +1447,14 @@
     "begin_checkout": 536,
     "purchase": 112,
     "conversion_rate": 0.008920748705694943
+  },
+  {
+    "data": "2026-06-30",
+    "sessions": 11921,
+    "view_item": 10430,
+    "add_to_cart": 678,
+    "begin_checkout": 573,
+    "purchase": 118,
+    "conversion_rate": 0.009898498448116768
   }
 ]
