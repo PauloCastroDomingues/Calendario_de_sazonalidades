@@ -14,27 +14,25 @@ Por isso, métricas de receita, campanha, UTM, produto e funil entram como evid�
 
 ## Como abrir
 
-1. Instale as dependências uma vez:
+1. Instale as dependencias uma vez:
 
 ```bat
 python -m pip install -r requirements.txt
 ```
 
-2. Dê dois cliques em `atualizar_dashboard.bat`.
-3. O script atualiza os JSONs mockados em `data/`.
-4. O backend FastAPI é iniciado em `http://localhost:8765/dashboard.html`.
-5. O dashboard abre automaticamente no navegador.
+2. De dois cliques em `atualizar_dashboard.bat`.
+3. O backend FastAPI e iniciado em `http://localhost:8765/dashboard.html`.
+4. O dashboard abre automaticamente no navegador.
 
-Também é possível rodar manualmente:
+Tambem e possivel rodar manualmente:
 
 ```bat
-python scripts\atualizar_dados.py
 python -m uvicorn backend.app:app --host 127.0.0.1 --port 8765
 ```
 
 Depois acesse `http://localhost:8765/dashboard.html`.
 
-Se a API não estiver disponível, o frontend ainda tenta abrir em modo fallback lendo os JSONs locais e usando `localStorage` apenas como contingência temporária para eventos manuais.
+Se a API nao estiver disponivel, o frontend ainda tenta abrir em modo fallback lendo os JSONs locais e usando `localStorage` apenas como contingencia temporaria para eventos manuais.
 
 ## Arquitetura compartilhada
 
@@ -449,6 +447,8 @@ Arquivos importantes para deploy:
 - `.vercelignore`: bloqueia credenciais, caches e arquivos gerados em deploys pela Vercel CLI.
 - `VERSION` e `CHANGELOG.md`: registram a versao publicada.
 
+Estrutura detalhada do repositorio: `docs/ESTRUTURA_DO_PROJETO.md`.
+
 Configuracao recomendada no Vercel:
 
 ```text
@@ -522,6 +522,15 @@ No Cloud Run, configure as variáveis de ambiente e monte/disponibilize a creden
 ## Queries futuras
 
 Os SQLs de referencia ficam em `queries/`. O Apps Script hoje possui as consultas operacionais dentro de `apps_script/bigquery_bridge/Code.gs`, e o exportador Python usa os arquivos em `queries/` como alternativa tecnica para testes, backfills e manutencao.
+
+## Arquivo historico
+
+Arquivos que foram uteis no MVP, mas nao fazem parte do fluxo operacional atual, ficam em `docs/archive/`:
+
+- `docs/archive/screenshots/`: previews antigos do dashboard.
+- `docs/archive/legacy_mock/`: gerador de dados mockados e servidor simples legado.
+
+Esses arquivos nao devem ser usados no fluxo diario. Eles existem apenas para consulta historica.
 
 ## Credencial BigQuery
 

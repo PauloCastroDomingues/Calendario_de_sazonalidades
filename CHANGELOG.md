@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.9 - 2026-07-01
+
+- Organizada a raiz do repositorio, movendo prints antigos para `docs/archive/screenshots/`.
+- Movidos gerador mock e servidor simples legado para `docs/archive/legacy_mock/`.
+- Simplificado `atualizar_dashboard.bat` para abrir apenas o backend FastAPI atual.
+- Adicionado `docs/ESTRUTURA_DO_PROJETO.md` com responsabilidades das pastas e regra de limpeza.
+- Atualizado o README para remover o fluxo mock como caminho principal.
+- Sincronizada a versao do `pyproject.toml` com `VERSION`.
+
 ## 0.4.8 - 2026-07-01
 
 - Adicionado disjuntor `BQ_EXPORT_ENABLED` para ligar/desligar rapidamente consultas BigQuery no Apps Script.
