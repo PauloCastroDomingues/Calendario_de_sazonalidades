@@ -1,25 +1,5 @@
 [
   {
-    "event_id": "manual_891aa3bbc5a8478f",
-    "data_inicio": "2026-07-01",
-    "data_fim": "2026-07-01",
-    "titulo": "lançamento monocromo teste para salvar",
-    "tipo": "Campanha",
-    "categoria": "Campanha",
-    "produto_relacionado": "Teste",
-    "campanha_relacionada": "utm",
-    "prioridade": "Média",
-    "responsavel": "João",
-    "observacao": "abcdefghksbsishf",
-    "status": "Ativo",
-    "created_by": "João",
-    "created_at": "2026-07-01T13:51:26.216Z",
-    "updated_by": "João",
-    "updated_at": "2026-07-01T14:26:37.229Z",
-    "deleted_at": "",
-    "id": "manual_891aa3bbc5a8478f"
-  },
-  {
     "event_id": "manual_e922a09f633c403b",
     "data_inicio": "2026-07-01",
     "data_fim": "2026-07-01",
