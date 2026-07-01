@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.6 - 2026-07-01
+
+- Fechada automaticamente a aba de eventos manuais apos salvamento bem-sucedido.
+- Mantida a aba aberta quando a gravacao falha, exibindo erro para correcao.
+- Exibida confirmacao fora da aba fechada para deixar claro que o evento foi salvo.
+- Atualizado o cache bust dos assets para `v=0.4.6`.
+
 ## 0.4.5 - 2026-07-01
 
 - Adicionado estado de salvamento no formulario de eventos manuais.

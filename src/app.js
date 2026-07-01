@@ -2403,8 +2403,11 @@ async function saveManualEventFromForm(event) {
       if (saved) {
         await reloadDataAfterManualEventChange();
         closeManualFormAfterSave(form, saved);
-        setManualStatus("Evento salvo na base compartilhada.");
+        const message = "Evento salvo na base compartilhada.";
+        setManualStatus(message);
+        closeMenus();
         renderDashboard();
+        setDataStatusMessage(message);
         return;
       }
       setManualStatus(
@@ -2421,12 +2424,13 @@ async function saveManualEventFromForm(event) {
     const persisted = persistManualEvents();
     persistDeletedManualEventIds();
     closeManualFormAfterSave(form, manualEvent);
-    setManualStatus(
-      persisted
-        ? "Evento salvo no navegador. Use Exportar eventos manuais para gerar o JSON."
-        : "Evento salvo nesta sessão. Use Exportar eventos manuais para baixar o JSON."
-    );
+    const message = persisted
+      ? "Evento salvo no navegador. Use Exportar eventos manuais para gerar o JSON."
+      : "Evento salvo nesta sessão. Use Exportar eventos manuais para baixar o JSON.";
+    setManualStatus(message);
+    closeMenus();
     renderDashboard();
+    setDataStatusMessage(message);
   } finally {
     setManualFormSaving(false);
   }
