@@ -11,11 +11,18 @@ queries/validacao_manual_bigquery.sql
 Abra esse arquivo, copie os blocos para o BigQuery e ajuste:
 
 ```sql
-DECLARE data_inicio DATE DEFAULT DATE '2026-06-01';
-DECLARE data_fim DATE DEFAULT DATE '2026-06-30';
+WITH params AS (
+  SELECT
+    DATE '2026-06-01' AS data_inicio,
+    DATE '2026-06-30' AS data_fim
+)
 ```
 
 Use o mesmo periodo no dashboard.
+
+Cada bloco da query e independente. Copie sempre o bloco completo, com o
+`WITH params`, e rode um bloco por vez. Se voce selecionar apenas o `SELECT`
+final, o BigQuery nao vai conhecer `data_inicio` e `data_fim`.
 
 ## Como validar
 
@@ -43,8 +50,8 @@ Use o mesmo periodo no dashboard.
 | Campanhas | Investimento | Tabela de campanhas | Deve bater por periodo |
 | Campanhas | Cliques | Tabela de campanhas | Pequena diferenca pode indicar janela/fonte |
 | Campanhas | Impressoes | Tabela de campanhas | Pequena diferenca pode indicar janela/fonte |
-| Produtos | Top produtos | Tabela de produtos | Validar top 10 por receita |
-| Produtos | Itens vendidos | Tabela de produtos | Validar no mesmo periodo |
+| Produtos | Top produtos | Tabela de produtos | Validar o recorte exportado, nao o universo total |
+| Produtos | Itens vendidos | Tabela de produtos | Validar dentro do ranking diario exportado |
 | UTMs | Pedidos | Tabela de aquisicao | Validar regra de atribuicao |
 | UTMs | Receita | Tabela de aquisicao | Validar regra de atribuicao |
 | Estoque | SKUs | Tabela de estoque | Validar no mesmo dia da carga |
@@ -95,4 +102,6 @@ MVP de prontidao comercial sazonal com indicadores principais homologados contra
 - Evite validar `hoje`; use D-1 ou mes fechado.
 - Estoque pode divergir se a consulta for feita em outro momento.
 - UTM depende da regra de atribuicao; divergencia aqui pode ser conceito, nao erro.
-- Produtos no dashboard podem usar recorte/ranking, entao valide top produtos e totais com cuidado.
+- Produtos no dashboard usam recorte de ranking diario: top 5 e bottom 5 por receita em cada dia.
+- O bloco de universo total de produtos e apenas diagnostico; nao compare esse total diretamente com `data/produtos_dia.json`.
+- As fontes finais seguem a camada MART do projeto BigQuery (`mart_growth_us` e `mart_shared`), evitando RAW/STG/CORE como verdade final.

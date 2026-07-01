@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.3 - 2026-07-01
+
+- Corrigida a validacao manual BigQuery para que cada bloco SQL rode de forma independente com `WITH params`.
+- Ajustada a validacao de produtos para comparar o mesmo recorte exportado pelo JSON: top 5 e bottom 5 por dia.
+- Ajustada a validacao de UTMs para agregar o mesmo snapshot publicado em `data/utms_dia.json`.
+- Atualizada a documentacao para evitar comparacao direta entre universo total de produtos e ranking exportado.
+
 ## 0.5.2 - 2026-07-01
 
 - Adicionada validacao manual BigQuery x dashboard em `queries/validacao_manual_bigquery.sql`.
