@@ -45,6 +45,7 @@ def build_analytics(payload: dict[str, Any], today: date | None = None) -> dict[
     eventos_manuais = payload.get("eventos_manuais") or payload.get("eventosManuais") or []
     metas = payload.get("metas") or payload.get("metas_comerciais") or {}
     manifest = payload.get("manifest") or {}
+    data_quality = payload.get("data_quality") or {}
 
     month_start = cutoff.replace(day=1)
     month_end = cutoff.replace(day=monthrange(cutoff.year, cutoff.month)[1])
@@ -88,6 +89,7 @@ def build_analytics(payload: dict[str, Any], today: date | None = None) -> dict[
         "readiness_playbook": readiness_playbook[:4],
         "action_plan": action_plan[:8],
         "automation_health": automation_health,
+        "data_quality": data_quality,
         "recommendations": recommendations[:6],
         "diagnostic": build_diagnostic(forecast, trends, upcoming_events),
     }
@@ -105,6 +107,7 @@ def empty_analytics() -> dict[str, Any]:
         "readiness_playbook": [],
         "action_plan": [],
         "automation_health": {},
+        "data_quality": {},
         "recommendations": [],
         "diagnostic": "Sem dados suficientes para gerar previsao.",
     }

@@ -1333,6 +1333,88 @@ textarea {
   border-left-color: #8b6424;
 }
 
+.data-quality-health {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.9fr) minmax(0, 1.25fr) minmax(220px, 1fr);
+  gap: 14px;
+  border: 1px solid var(--gray-100);
+  border-left: 4px solid var(--green-700);
+  border-radius: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.data-quality-main {
+  display: grid;
+  gap: 4px;
+}
+
+.data-quality-main span,
+.data-quality-grid span,
+.data-quality-alerts span {
+  color: var(--gray-500);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.data-quality-main strong,
+.data-quality-grid strong,
+.data-quality-alerts strong {
+  color: var(--green-900);
+}
+
+.data-quality-main p {
+  margin: 0;
+  color: var(--gray-700);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.data-quality-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.data-quality-grid span {
+  border-left: 1px solid var(--gray-100);
+  padding-left: 8px;
+}
+
+.data-quality-alerts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.data-quality-alerts li {
+  display: grid;
+  gap: 2px;
+  border-left: 3px solid var(--gray-200);
+  padding-left: 8px;
+}
+
+.quality-atencao {
+  border-left-color: #8b6424;
+}
+
+.quality-critico,
+.quality-alert-critico {
+  border-left-color: #9b3e37;
+}
+
+.quality-alert-atencao {
+  border-left-color: #8b6424;
+}
+
+.quality-alert-info,
+.quality-alert-ok {
+  border-left-color: var(--green-700);
+}
+
 .intelligence-columns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1948,6 +2030,8 @@ td span {
 
   .automation-health,
   .automation-health-grid,
+  .data-quality-health,
+  .data-quality-grid,
   .action-plan-list li {
     grid-template-columns: 1fr;
   }
@@ -2008,6 +2092,8 @@ td span {
   .readiness-checklist,
   .automation-health,
   .automation-health-grid,
+  .data-quality-health,
+  .data-quality-grid,
   .action-plan-list,
   .action-plan-list li {
     grid-template-columns: 1fr;

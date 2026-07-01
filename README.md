@@ -41,6 +41,7 @@ O frontend não precisa de credencial BigQuery. Ele consome apenas a API do back
 - `GET /api/status`: última atualização, próxima atualização, status de refresh e fontes.
 - `GET /api/calendar-data`: JSON consolidado usado pelo dashboard.
 - `GET /api/analytics`: previsão de fechamento, risco, sinais executivos, próximas datas, playbook de prontidão sazonal e recomendações.
+- `GET /api/data-quality`: score de qualidade dos dados, frescor D-1, linhas por fonte e alertas de uso.
 - `POST /api/refresh`: força atualização imediata.
 - `GET /api/events`: lista eventos manuais ativos.
 - `POST /api/events`: cria evento manual compartilhado.
@@ -203,6 +204,26 @@ O arquivo `data/manifest.json` é usado para auditar a carga D-1:
 - alertas quando a carga estiver atrasada ou vazia.
 
 Essa leitura aparece no bloco de inteligência comercial para facilitar a checagem diária antes da reunião comercial.
+
+### Qualidade dos dados
+
+O backend tambem calcula uma camada de qualidade em `GET /api/data-quality` e no payload de `GET /api/calendar-data`.
+
+Ela verifica:
+
+- arquivos obrigatorios ausentes ou vazios;
+- atraso em relacao ao D-1 esperado;
+- ultima data disponivel em KPIs e snapshots diarios;
+- manifesto D-1 ausente ou atrasado;
+- BigQuery pausado via `BQ_EXPORT_ENABLED=0`;
+- eventos manuais incompletos ou duplicados por titulo e janela.
+
+O dashboard exibe esse diagnostico dentro de `Inteligencia comercial`, junto da automacao D-1. A ideia e separar claramente duas perguntas:
+
+```text
+Os dados estao atualizados?
+Os dados estao confiaveis o suficiente para decisao?
+```
 
 ### Privacidade dos dados
 

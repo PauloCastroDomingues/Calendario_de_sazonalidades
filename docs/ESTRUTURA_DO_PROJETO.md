@@ -12,7 +12,7 @@ Este projeto deve ficar organizado por responsabilidade. A raiz deve conter apen
 ## Codigo ativo
 
 - `src/`: frontend estatico, CSS e JavaScript do dashboard.
-- `backend/`: API FastAPI, cache, analytics e storage de eventos.
+- `backend/`: API FastAPI, cache, analytics, qualidade dos dados e storage de eventos.
 - `apps_script/bigquery_bridge/`: Apps Script operacional para BigQuery D-1 e eventos manuais via Google Sheets.
 - `scripts/`: utilitarios tecnicos ativos, como exportacao BigQuery local.
 - `queries/`: SQLs de referencia usados pelo exportador Python e como documentacao tecnica das consultas.

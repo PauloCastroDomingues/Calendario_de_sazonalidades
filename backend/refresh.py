@@ -8,6 +8,7 @@ from typing import Any
 
 from .analytics import build_analytics
 from .config import Settings
+from .quality import build_data_quality
 from .storage import LocalManualEventStore
 
 
@@ -52,6 +53,7 @@ class RefreshService:
             "next_update_at": self.next_update_at,
             "is_refreshing": self.is_refreshing,
             "source_status": self.source_status,
+            "data_quality": self.cache.get("data_quality") or {},
         }
 
     async def refresh(self, reason: str = "manual") -> dict[str, Any]:
@@ -119,6 +121,7 @@ class RefreshService:
 
         current_events = sorted(current_events, key=lambda item: str(item.get("data_inicio") or item.get("data") or ""))
         self.cache["eventos_manuais"] = current_events
+        self.cache["data_quality"] = build_data_quality(self.cache, self.source_status)
         self.cache["analytics"] = build_analytics(self.cache)
         self.cache["atualizado_em"] = iso_now()
         self.updated_at = self.cache["atualizado_em"]
@@ -127,6 +130,7 @@ class RefreshService:
         self.source_status = {
             **self.source_status,
             "eventos_manuais": f"{len(current_events)} ativo(s)",
+            "data_quality": self.cache["data_quality"].get("status", "ok"),
             "analytics": "ok",
             "reason": reason,
             "events_storage": self.settings.events_storage,
@@ -156,8 +160,10 @@ class RefreshService:
 
         payload["eventos_manuais"] = self.event_store.list_events(include_deleted=False)
         payload["atualizado_em"] = iso_now()
+        payload["data_quality"] = build_data_quality(payload, source_status)
         payload["analytics"] = build_analytics(payload)
         source_status["eventos_manuais"] = f"{len(payload['eventos_manuais'])} ativo(s)"
+        source_status["data_quality"] = payload["data_quality"].get("status", "ok")
         source_status["analytics"] = "ok"
         return payload, source_status
 

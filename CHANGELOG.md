@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 - 2026-07-01
+
+- Adicionada camada de qualidade dos dados no backend, com score, frescor D-1, fontes, linhas e alertas.
+- Criado endpoint `GET /api/data-quality`.
+- Exposto `data_quality` no payload consolidado e no status do backend.
+- Adicionado bloco `Qualidade dos dados` no painel de inteligencia comercial.
+- Sincronizada a versao interna da API FastAPI com a versao do projeto.
+
 ## 0.4.9 - 2026-07-01
 
 - Organizada a raiz do repositorio, movendo prints antigos para `docs/archive/screenshots/`.

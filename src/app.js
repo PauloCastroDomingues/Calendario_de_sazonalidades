@@ -451,6 +451,7 @@ async function loadManualEventsFromApi() {
 }
 
 function normalizeCalendarPayload(payload = {}) {
+  const analytics = payload.analytics || null;
   return {
     calendario: payload.calendario || [],
     kpis: payload.kpis || [],
@@ -462,7 +463,8 @@ function normalizeCalendarPayload(payload = {}) {
     metas: payload.metas || {},
     manifest: payload.manifest || {},
     eventosManuais: normalizeManualEventsList(payload.eventos_manuais || payload.eventosManuais || []),
-    analytics: payload.analytics || null,
+    analytics,
+    dataQuality: payload.data_quality || payload.dataQuality || analytics?.data_quality || null,
   };
 }
 
@@ -967,6 +969,7 @@ function renderExecutiveIntelligence() {
     analytics.data_cutoff ? `Dados até ${formatShortDate(analytics.data_cutoff)} · D-1` : "Dados até D-1";
   document.getElementById("analyticsDiagnostic").textContent = analytics.diagnostic || "";
   renderAutomationHealth(analytics.automation_health || {});
+  renderDataQualityHealth(state.data.dataQuality || analytics.data_quality || {});
 
   const risk = slug(forecast.risk_level || "indefinido");
   const riskLabel = document.getElementById("forecastRisk");
@@ -993,7 +996,11 @@ function renderExecutiveIntelligence() {
 
 function renderAutomationHealth(health = {}) {
   const target = document.getElementById("automationHealth");
-  if (!target || !Object.keys(health).length) return;
+  if (!target) return;
+  if (!Object.keys(health).length) {
+    target.hidden = true;
+    return;
+  }
   target.hidden = false;
   target.className = `automation-health automation-${slug(health.status || "atencao")}`;
   target.innerHTML = `
@@ -1007,6 +1014,49 @@ function renderAutomationHealth(health = {}) {
       <span>Arquivos: <strong>${formatInteger(health.total_files || 0)}</strong></span>
       <span>Modo: <strong>${escapeHtml(health.mode || "-")}</strong></span>
     </div>
+  `;
+}
+
+function renderDataQualityHealth(quality = {}) {
+  const target = document.getElementById("dataQualityHealth");
+  if (!target) return;
+  if (!quality || !Object.keys(quality).length) {
+    target.hidden = true;
+    return;
+  }
+
+  const alerts = Array.isArray(quality.alerts) ? quality.alerts.slice(0, 3) : [];
+  const status = slug(quality.status || "atencao");
+  target.hidden = false;
+  target.className = `data-quality-health quality-${status}`;
+  target.innerHTML = `
+    <div class="data-quality-main">
+      <span>Qualidade dos dados</span>
+      <strong>${escapeHtml(quality.label || "-")}</strong>
+      <p>${escapeHtml(quality.summary || "")}</p>
+    </div>
+    <div class="data-quality-grid">
+      <span>Score: <strong>${formatInteger(quality.score || 0)}/100</strong></span>
+      <span>D-1 esperado: <strong>${formatShortDate(quality.expected_d1)}</strong></span>
+      <span>Fontes OK: <strong>${formatInteger(quality.healthy_sources || 0)}/${formatInteger(quality.total_sources || 0)}</strong></span>
+      <span>Linhas: <strong>${formatInteger(quality.total_rows || 0)}</strong></span>
+    </div>
+    <ul class="data-quality-alerts">
+      ${
+        alerts.length
+          ? alerts
+              .map(
+                (item) => `
+                  <li class="quality-alert-${slug(item.severity || "info")}">
+                    <strong>${escapeHtml(item.title || "-")}</strong>
+                    <span>${escapeHtml(item.detail || "")}</span>
+                  </li>
+                `
+              )
+              .join("")
+          : `<li class="quality-alert-ok"><strong>Sem alerta critico</strong><span>As fontes principais passaram nas checagens automaticas.</span></li>`
+      }
+    </ul>
   `;
 }
 
