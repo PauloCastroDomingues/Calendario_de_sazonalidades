@@ -1115,13 +1115,30 @@ function renderLaunchAnalysis(items = []) {
   const panel = document.getElementById("launchAnalysisPanel");
   const target = document.getElementById("launchAnalysisList");
   if (!panel || !target) return;
+  panel.hidden = false;
   if (!items.length) {
-    panel.hidden = true;
-    target.innerHTML = "";
+    target.innerHTML = `
+      <article class="launch-card launch-empty launch-planejado">
+        <div class="launch-card-head">
+          <div>
+            <span>Aguardando lancamento</span>
+            <h4>Nenhum lancamento ativo para comparar</h4>
+          </div>
+          <strong>configurar</strong>
+        </div>
+        <p>Crie um evento manual com tipo <strong>Lançamento de produto</strong> para liberar a comparacao.</p>
+        <div class="launch-metrics launch-secondary">
+          <span>Produto relacionado <strong>SKU, linha ou nome do produto</strong></span>
+          <span>Campanha <strong>Nome ou UTM</strong></span>
+          <span>Janela <strong>D0 a D+90</strong></span>
+        </div>
+        <p class="launch-diagnostic">Depois de salvo, este bloco cruza receita, pedidos, ticket, clientes novos, produto, estoque, midia e UTMs contra uma janela anterior comparavel.</p>
+        <footer>Abra Campanhas e lançamentos, escolha o tipo Lançamento de produto e preencha Produto relacionado e Campanha relacionada.</footer>
+      </article>
+    `;
     return;
   }
 
-  panel.hidden = false;
   target.innerHTML = items.map(renderLaunchCard).join("");
 }
 

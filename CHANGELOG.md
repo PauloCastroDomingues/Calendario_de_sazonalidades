@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.6 - 2026-07-03
+
+- Mantido visivel o bloco de analise de lancamentos mesmo quando ainda nao ha lancamento cadastrado.
+- Adicionado estado vazio com orientacao dos campos necessarios para liberar a comparacao.
+
 ## 0.5.5 - 2026-07-03
 
 - Adicionada camada de analise de lancamentos dentro de `analytics`, usando eventos manuais do tipo lancamento.
