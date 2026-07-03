@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-03T18:39:44.208Z",
+  "generated_at": "2026-07-03T18:42:21.207Z",
   "mode": "apps_script_bigquery_d1",
   "project_id": "reise-ssot",
   "start_date": "2024-06-02",
@@ -21,7 +21,7 @@
     },
     "produtos_dia.json": {
       "rows": 1899,
-      "bytes_processed": 4588837,
+      "bytes_processed": 0,
       "location": "southamerica-east1",
       "updated": true
     },
