@@ -1455,6 +1455,137 @@ textarea {
   margin-top: 2px;
 }
 
+.launch-analysis-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  border-top: 1px solid var(--gray-100);
+  padding-top: 16px;
+}
+
+.launch-analysis-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.launch-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--gray-100);
+  border-left: 4px solid var(--green-700);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+}
+
+.launch-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.launch-card-head span,
+.launch-context span,
+.launch-windows small {
+  color: var(--gray-500);
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.launch-card-head h4 {
+  margin: 3px 0 0;
+  color: var(--green-900);
+  font-size: 1rem;
+}
+
+.launch-card-head strong {
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: var(--green-900);
+  background: var(--green-50);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.launch-card p,
+.launch-card footer {
+  margin: 0;
+  color: var(--gray-700);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.launch-metrics,
+.launch-windows {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.launch-metrics span,
+.launch-windows span {
+  min-width: 0;
+  border: 1px solid var(--gray-100);
+  border-radius: 6px;
+  padding: 8px;
+  color: var(--gray-500);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.launch-metrics strong,
+.launch-windows strong {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--green-900);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.launch-secondary span:first-child {
+  grid-column: span 2;
+}
+
+.launch-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.launch-context span {
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--gray-50);
+}
+
+.launch-diagnostic {
+  border-top: 1px solid var(--gray-100);
+  padding-top: 10px;
+}
+
+.launch-acima {
+  border-left-color: #174637;
+}
+
+.launch-dentro,
+.launch-sem-baseline {
+  border-left-color: #2d5d83;
+}
+
+.launch-abaixo {
+  border-left-color: #9b3e37;
+}
+
+.launch-planejado {
+  border-left-color: #8b6424;
+}
+
 .readiness-playbook {
   display: grid;
   gap: 12px;
@@ -2023,6 +2154,7 @@ td span {
 
   .intelligence-kpis,
   .intelligence-columns,
+  .launch-analysis-list,
   .readiness-list,
   .action-plan-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2088,6 +2220,9 @@ td span {
 
   .intelligence-kpis,
   .intelligence-columns,
+  .launch-analysis-list,
+  .launch-metrics,
+  .launch-windows,
   .readiness-list,
   .readiness-checklist,
   .automation-health,
@@ -2102,6 +2237,10 @@ td span {
   .manual-event-form,
   .fluctuation-grid {
     grid-template-columns: 1fr;
+  }
+
+  .launch-secondary span:first-child {
+    grid-column: span 1;
   }
 
   .menu-root,

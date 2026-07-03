@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.5 - 2026-07-03
+
+- Adicionada camada de analise de lancamentos dentro de `analytics`, usando eventos manuais do tipo lancamento.
+- Cruzados KPIs, produtos, campanhas, UTMs e estoque para leitura de receita, pedidos, clientes novos, produto, midia e janelas D+.
+- Incluido bloco visual `Analise de lancamentos` no painel de inteligencia comercial.
+
 ## 0.5.4 - 2026-07-01
 
 - Removidos os documentos de validacao BigQuery para reduzir ruido operacional.

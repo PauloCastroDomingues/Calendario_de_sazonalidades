@@ -984,6 +984,7 @@ function renderExecutiveIntelligence() {
   document.getElementById("analyticsSignalsList").innerHTML = renderSignalItems(analytics.signals || []);
   document.getElementById("upcomingEventsList").innerHTML = renderUpcomingEventItems(analytics.upcoming_events || []);
   document.getElementById("recommendationsList").innerHTML = renderRecommendationItems(analytics.recommendations || []);
+  renderLaunchAnalysis(analytics.launch_analysis || []);
   const readinessList = document.getElementById("readinessPlaybookList");
   if (readinessList) {
     readinessList.innerHTML = renderReadinessPlaybookItems(analytics.readiness_playbook || []);
@@ -1108,6 +1109,76 @@ function renderRecommendationItems(recommendations = []) {
   return recommendations
     .map((recommendation) => `<li><span>${escapeHtml(recommendation)}</span></li>`)
     .join("");
+}
+
+function renderLaunchAnalysis(items = []) {
+  const panel = document.getElementById("launchAnalysisPanel");
+  const target = document.getElementById("launchAnalysisList");
+  if (!panel || !target) return;
+  if (!items.length) {
+    panel.hidden = true;
+    target.innerHTML = "";
+    return;
+  }
+
+  panel.hidden = false;
+  target.innerHTML = items.map(renderLaunchCard).join("");
+}
+
+function renderLaunchCard(item = {}) {
+  const metrics = item.metrics || {};
+  const product = item.product || {};
+  const media = item.media || {};
+  const windows = (item.windows || [])
+    .filter((window) => window.available)
+    .slice(0, 4)
+    .map(
+      (window) => `
+        <span>
+          <small>${escapeHtml(window.label || "-")}</small>
+          <strong>${formatCurrency(window.revenue || 0)}</strong>
+        </span>
+      `
+    )
+    .join("");
+
+  const status = slug(item.status || "planejado");
+  const productName = product.primary_name || item.product_reference || "Produto nao vinculado";
+  const mediaRoas = Number(media.roas || 0);
+  const revenueLift = metrics.revenue_lift;
+
+  return `
+    <article class="launch-card launch-${status}">
+      <div class="launch-card-head">
+        <div>
+          <span>${escapeHtml(item.phase || "lancamento")}</span>
+          <h4>${escapeHtml(item.name || "-")}</h4>
+        </div>
+        <strong>${escapeHtml(item.status || "-")}</strong>
+      </div>
+      <p>${formatShortDate(item.start_date)} a ${formatShortDate(item.end_date)} · ${escapeHtml(item.owner || "Comercial")}</p>
+      <div class="launch-metrics">
+        <span>Receita <strong>${formatCurrency(metrics.revenue || 0)}</strong></span>
+        <span>Pedidos <strong>${formatInteger(metrics.orders || 0)}</strong></span>
+        <span>Ticket <strong>${formatCurrency(metrics.ticket || 0)}</strong></span>
+        <span>% novos <strong>${formatPercent(metrics.new_customer_share || 0)}</strong></span>
+      </div>
+      <div class="launch-metrics launch-secondary">
+        <span>Produto <strong>${escapeHtml(productName)}</strong></span>
+        <span>Itens <strong>${formatInteger(product.items || 0)}</strong></span>
+        <span>Invest. <strong>${formatCurrency(media.investment || 0)}</strong></span>
+        <span>ROAS UTM <strong>${mediaRoas ? formatRoas(mediaRoas) : "-"}</strong></span>
+      </div>
+      <div class="launch-context">
+        <span>${revenueLift === null || revenueLift === undefined ? "Sem baseline" : `Vs. baseline ${formatPercent(revenueLift, true)}`}</span>
+        ${product.risk_status ? `<span>Estoque: ${escapeHtml(product.risk_status)}</span>` : ""}
+        ${media.matched_campaigns || media.matched_utms ? `<span>${formatInteger(media.matched_campaigns || 0)} campanha(s) · ${formatInteger(media.matched_utms || 0)} UTM(s)</span>` : ""}
+      </div>
+      ${windows ? `<div class="launch-windows">${windows}</div>` : ""}
+      <p class="launch-diagnostic">${escapeHtml(item.diagnostic || "")}</p>
+      <footer>${escapeHtml(item.next_action || "")}</footer>
+    </article>
+  `;
 }
 
 function renderReadinessPlaybookItems(items = []) {
