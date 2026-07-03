@@ -1,46 +1,45 @@
 {
-  "generated_at": "2026-07-01T16:34:29.583Z",
+  "generated_at": "2026-07-03T17:38:05.450Z",
   "mode": "apps_script_bigquery_d1",
   "project_id": "reise-ssot",
-  "start_date": "2024-05-31",
-  "end_date": "2026-06-30",
+  "start_date": "2024-06-02",
+  "end_date": "2026-07-02",
   "dry_run": false,
-  "bq_export_enabled": true,
   "max_bytes_billed": 3221225472,
   "files": {
     "kpis_dia.json": {
       "rows": 761,
-      "bytes_processed": 76488,
+      "bytes_processed": 76568,
       "location": "US",
       "updated": true
     },
     "funil_dia.json": {
-      "rows": 162,
-      "bytes_processed": 5247121,
+      "rows": 164,
+      "bytes_processed": 5301294,
       "location": "US",
       "updated": true
     },
     "produtos_dia.json": {
-      "rows": 1879,
-      "bytes_processed": 4532005,
+      "rows": 1899,
+      "bytes_processed": 4588837,
       "location": "southamerica-east1",
       "updated": true
     },
     "campanhas_dia.json": {
-      "rows": 5026,
-      "bytes_processed": 2045370888,
+      "rows": 5124,
+      "bytes_processed": 2090714003,
       "location": "US",
       "updated": true
     },
     "utms_dia.json": {
-      "rows": 6926,
-      "bytes_processed": 172295343,
+      "rows": 7027,
+      "bytes_processed": 176132830,
       "location": "US",
       "updated": true
     },
     "estoque.json": {
       "rows": 1040,
-      "bytes_processed": 687256432,
+      "bytes_processed": 694275027,
       "location": "southamerica-east1",
       "updated": true
     },
