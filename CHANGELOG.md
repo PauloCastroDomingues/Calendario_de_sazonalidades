@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.8 - 2026-07-03
+
+- Polida a aba `Analise de lancamentos` com seletor visual de produtos, busca, contador e selecao rapida de Top 3.
+- Adicionados cards comparativos por produto para facilitar a leitura das curvas entre 1, 2 ou mais produtos.
+- Melhorada a organizacao visual da bancada de lancamentos para uma experiencia mais executiva.
+- Atualizado cache bust dos assets para `v=0.5.8`.
+
 ## 0.5.7 - 2026-07-03
 
 - Criada a aba `Analise de lancamentos` como uma bancada propria dentro do dashboard.

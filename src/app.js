@@ -123,6 +123,7 @@ const state = {
     productKeys: [],
     launchDate: "",
     windowDays: 90,
+    productSearch: "",
   },
 };
 
@@ -275,8 +276,27 @@ function bindControls() {
     state.launch.windowDays = Number(event.target.value || 90);
     renderLaunchWorkbench();
   });
-  document.getElementById("launchProductSelect").addEventListener("change", (event) => {
-    state.launch.productKeys = [...event.target.selectedOptions].map((option) => option.value);
+  document.getElementById("launchProductSearch").addEventListener("input", (event) => {
+    state.launch.productSearch = event.target.value;
+    renderLaunchProductPicker(collectLaunchProducts());
+  });
+  document.getElementById("launchProductList").addEventListener("click", handleLaunchProductListClick);
+  document.getElementById("launchSelectTopProductsButton").addEventListener("click", () => {
+    const products = collectLaunchProducts();
+    const query = normalizeComparableText(state.launch.productSearch || "");
+    const visibleProducts = products.filter((product) => {
+      if (!query) return true;
+      return normalizeComparableText(`${product.name} ${product.sku} ${product.productKey}`).includes(query);
+    });
+    state.launch.productKeys = visibleProducts.slice(0, 3).map((product) => product.key);
+    renderLaunchProductPicker(products);
+    renderLaunchWorkbench();
+  });
+  document.getElementById("launchClearProductsButton").addEventListener("click", () => {
+    state.launch.productKeys = [];
+    state.launch.productSearch = "";
+    document.getElementById("launchProductSearch").value = "";
+    renderLaunchProductPicker(collectLaunchProducts());
     renderLaunchWorkbench();
   });
 }
@@ -1279,10 +1299,9 @@ function handleLaunchEventChange(event) {
 
 function populateLaunchControls() {
   const eventSelect = document.getElementById("launchEventSelect");
-  const productSelect = document.getElementById("launchProductSelect");
   const dateInput = document.getElementById("launchDateInput");
   const windowSelect = document.getElementById("launchWindowSelect");
-  if (!eventSelect || !productSelect || !dateInput || !windowSelect) return;
+  if (!eventSelect || !dateInput || !windowSelect) return;
 
   const events = collectLaunchEvents();
   const products = collectLaunchProducts();
@@ -1307,18 +1326,71 @@ function populateLaunchControls() {
   ].join("");
   eventSelect.value = state.launch.eventId || "";
 
-  productSelect.innerHTML = products
-    .map(
-      (item) =>
-        `<option value="${escapeHtml(item.key)}">${escapeHtml(item.name)}${item.sku ? ` · ${escapeHtml(item.sku)}` : ""} · ${formatCompactCurrency(item.revenue)}</option>`
-    )
-    .join("");
-  [...productSelect.options].forEach((option) => {
-    option.selected = state.launch.productKeys.includes(option.value);
-  });
-
   dateInput.value = state.launch.launchDate || "";
   windowSelect.value = String(state.launch.windowDays || 90);
+  renderLaunchProductPicker(products);
+}
+
+function renderLaunchProductPicker(products) {
+  const list = document.getElementById("launchProductList");
+  const count = document.getElementById("launchSelectedCount");
+  const summary = document.getElementById("launchSelectedProductsSummary");
+  const search = document.getElementById("launchProductSearch");
+  if (!list || !count || !summary || !search) return;
+
+  if (search.value !== state.launch.productSearch) search.value = state.launch.productSearch || "";
+
+  const selected = products.filter((product) => state.launch.productKeys.includes(product.key));
+  const query = normalizeComparableText(state.launch.productSearch || "");
+  const filtered = products
+    .filter((product) => {
+      if (!query) return true;
+      return normalizeComparableText(`${product.name} ${product.sku} ${product.productKey}`).includes(query);
+    })
+    .slice(0, 80);
+
+  count.textContent = `${selected.length} selecionado${selected.length === 1 ? "" : "s"}`;
+  summary.innerHTML = selected.length
+    ? selected
+        .slice(0, 6)
+        .map((product) => `<span>${escapeHtml(product.name)}</span>`)
+        .join("")
+    : `<span>Nenhum produto selecionado</span>`;
+
+  list.innerHTML =
+    filtered
+      .map((product) => {
+        const checked = state.launch.productKeys.includes(product.key);
+        return `
+          <button class="launch-product-option${checked ? " is-selected" : ""}" type="button" data-product-key="${escapeHtml(product.key)}" role="option" aria-selected="${checked}">
+            <span class="launch-checkbox" aria-hidden="true">${checked ? "✓" : ""}</span>
+            <span class="launch-product-option-main">
+              <strong>${escapeHtml(product.name)}</strong>
+              <small>${escapeHtml(product.sku || product.productKey || product.key)}</small>
+            </span>
+            <span class="launch-product-option-meta">
+              <strong>${formatCompactCurrency(product.revenue)}</strong>
+              <small>${formatInteger(product.items)} itens</small>
+            </span>
+          </button>
+        `;
+      })
+      .join("") || `<div class="launch-product-empty">Nenhum produto encontrado para essa busca.</div>`;
+}
+
+function handleLaunchProductListClick(event) {
+  const option = event.target.closest("[data-product-key]");
+  if (!option) return;
+  const key = option.dataset.productKey;
+  const selected = new Set(state.launch.productKeys);
+  if (selected.has(key)) {
+    selected.delete(key);
+  } else {
+    selected.add(key);
+  }
+  state.launch.productKeys = [...selected];
+  renderLaunchProductPicker(collectLaunchProducts());
+  renderLaunchWorkbench();
 }
 
 function renderLaunchWorkbench() {
@@ -1327,6 +1399,7 @@ function renderLaunchWorkbench() {
   const analysis = buildLaunchWorkbenchAnalysis();
   renderLaunchInsight(analysis);
   renderLaunchMetricGrid(analysis);
+  renderLaunchProductCards(analysis);
   renderLaunchCurves(analysis);
   renderLaunchWindowCards(analysis);
   renderLaunchProductTable(analysis);
@@ -1440,6 +1513,55 @@ function renderLaunchMetricGrid(analysis) {
         </article>
       `
     )
+    .join("");
+}
+
+function renderLaunchProductCards(analysis) {
+  const target = document.getElementById("launchProductCards");
+  if (!target) return;
+
+  if (!analysis.selectedProducts.length) {
+    target.innerHTML = "";
+    return;
+  }
+
+  const totalRevenue = analysis.productSummary.revenue || 0;
+  target.innerHTML = analysis.selectedProducts
+    .slice(0, 8)
+    .map((product, index) => {
+      const current = summarizeLaunchWorkbenchProducts(
+        filterProductRowsByKeys(analysis.actualKeys, [product.key]),
+        [product]
+      );
+      const baseline = summarizeLaunchWorkbenchProducts(
+        filterProductRowsByKeys(analysis.baselineKeys, [product.key]),
+        [product]
+      );
+      const currentItem = current.byProduct[0] || { revenue: 0, items: 0 };
+      const baselineItem = baseline.byProduct[0] || { revenue: 0, items: 0 };
+      const variation = calculateVariation(currentItem.revenue, baselineItem.revenue);
+      const share = safeDivide(currentItem.revenue, totalRevenue);
+      const stock = state.indexes.estoque[product.sku] || {};
+      return `
+        <article class="launch-product-card launch-product-tone-${(index % 6) + 1}">
+          <div>
+            <span>Produto ${index + 1}</span>
+            <h3>${escapeHtml(product.name)}</h3>
+            <p>${escapeHtml(product.sku || product.productKey || product.key)}</p>
+          </div>
+          <div class="launch-product-card-metrics">
+            <span>Receita <strong>${formatCurrency(currentItem.revenue)}</strong></span>
+            <span>Itens <strong>${formatInteger(currentItem.items)}</strong></span>
+            <span>Share <strong>${formatPercent(share)}</strong></span>
+            <span>Vs. base <strong>${variation.label}</strong></span>
+          </div>
+          <footer>
+            <span>${stock.risk_status ? `Estoque: ${escapeHtml(stock.risk_status)}` : "Estoque sem sinal"}</span>
+            <span>${formatCurrency(safeDivide(currentItem.revenue, currentItem.items))} por item</span>
+          </footer>
+        </article>
+      `;
+    })
     .join("");
 }
 
