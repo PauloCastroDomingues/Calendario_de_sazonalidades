@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-03T17:41:48.971Z",
+  "generated_at": "2026-07-03T18:39:44.208Z",
   "mode": "apps_script_bigquery_d1",
   "project_id": "reise-ssot",
   "start_date": "2024-06-02",
@@ -15,31 +15,31 @@
     },
     "funil_dia.json": {
       "rows": 164,
-      "bytes_processed": 5301345,
+      "bytes_processed": 5302921,
       "location": "US",
       "updated": true
     },
     "produtos_dia.json": {
       "rows": 1899,
-      "bytes_processed": 0,
+      "bytes_processed": 4588837,
       "location": "southamerica-east1",
       "updated": true
     },
     "campanhas_dia.json": {
       "rows": 5124,
-      "bytes_processed": 2090714003,
+      "bytes_processed": 2091655871,
       "location": "US",
       "updated": true
     },
     "utms_dia.json": {
       "rows": 7027,
-      "bytes_processed": 176132974,
+      "bytes_processed": 176213664,
       "location": "US",
       "updated": true
     },
     "estoque.json": {
       "rows": 1040,
-      "bytes_processed": 694275027,
+      "bytes_processed": 694425658,
       "location": "southamerica-east1",
       "updated": true
     },
