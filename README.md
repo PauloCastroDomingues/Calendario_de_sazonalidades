@@ -339,6 +339,17 @@ Na producao correta, use `https://calendario-reise.vercel.app` e confira no topo
 
 O passo a passo completo e a explicacao da logica estao em `docs/EVENTOS_MANUAIS_APPS_SCRIPT.md`.
 
+## Analise de lancamentos
+
+A aba `Analise de lancamentos` trabalha por modelo, nao por SKU isolado. O usuario seleciona um ou mais modelos e o dashboard usa cor, tamanho e SKU como dimensoes internas da curva.
+
+Fontes opcionais para deixar a leitura mais governada:
+
+- `data/lancamentos_modelos.json`: modelos oficiais, linha, data de lancamento, termos de busca e prefixos de SKU.
+- `data/lancamentos_investimentos.json`: investimento, receita e pedidos planejados/reais por modelo e janela.
+
+No Apps Script, rode `instalarBaseLancamentos` para criar as abas `lancamentos_modelos` e `lancamentos_investimentos` na mesma planilha usada pelos eventos. Depois use `exportarLancamentos` para publicar apenas esses JSONs, ou `atualizarDadosD1` para publicar junto do snapshot D-1.
+
 ## Editar e excluir eventos manuais
 
 A lista `Eventos manuais neste mês` mostra apenas eventos criados manualmente que cruzam o mês exibido.

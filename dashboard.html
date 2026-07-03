@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Calendário Comercial Reise</title>
-    <link rel="stylesheet" href="src/style.css?v=0.5.8" />
+    <link rel="stylesheet" href="src/style.css?v=0.5.9" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="src/app.js?v=0.5.8" defer></script>
+    <script src="src/app.js?v=0.5.9" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -489,8 +489,8 @@
         <div class="section-heading launch-workbench-heading">
           <div>
             <span class="eyebrow">Lançamentos</span>
-            <h2>Curva e eficiência por produto</h2>
-            <p>Selecione um ou mais produtos, confirme a data de lançamento e acompanhe a curva D0-D90 com vendas, mídia, UTM, ticket e clientes.</p>
+            <h2>Curva e eficiência por modelo</h2>
+            <p>Selecione um ou mais modelos, confirme a data de lançamento e acompanhe a curva D0-D90 com vendas, cores, tamanhos, mídia, UTM, ticket e clientes.</p>
           </div>
           <span id="launchWorkbenchStatus" class="comparison-badge">Cache D-1</span>
         </div>
@@ -515,10 +515,10 @@
             </label>
           </div>
 
-          <section class="launch-product-picker" aria-label="Produtos analisados">
+          <section class="launch-product-picker" aria-label="Modelos analisados">
             <div class="launch-picker-head">
               <div>
-                <span>Produtos analisados</span>
+                <span>Modelos analisados</span>
                 <strong id="launchSelectedCount">0 selecionados</strong>
               </div>
               <div class="launch-picker-actions">
@@ -526,7 +526,7 @@
                 <button id="launchClearProductsButton" class="secondary-button" type="button">Limpar</button>
               </div>
             </div>
-            <input id="launchProductSearch" class="launch-product-search" type="search" placeholder="Buscar por produto, SKU ou linha" />
+            <input id="launchProductSearch" class="launch-product-search" type="search" placeholder="Buscar por modelo, cor, SKU ou linha" />
             <div id="launchSelectedProductsSummary" class="launch-selected-summary"></div>
             <div id="launchProductList" class="launch-product-list" role="listbox" aria-multiselectable="true"></div>
           </section>
@@ -560,14 +560,16 @@
 
           <article class="launch-detail-panel">
             <div class="section-heading">
-              <span class="eyebrow">Produto</span>
+              <span class="eyebrow">Modelo</span>
               <h2>Mix selecionado</h2>
             </div>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Produto</th>
+                    <th>Modelo / variação</th>
+                    <th>Cor</th>
+                    <th>Tam.</th>
                     <th class="numeric-cell">Receita</th>
                     <th class="numeric-cell">Itens</th>
                     <th class="numeric-cell">Ticket/item</th>

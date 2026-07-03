@@ -5,7 +5,11 @@ const DEFAULT_LOOKBACK_DAYS = 760;
 const DEFAULT_MAX_BYTES_BILLED = "1073741824";
 const DEFAULT_BQ_EXPORT_ENABLED = "1";
 const MANUAL_EVENTS_OUTPUT_PATH = "data/eventos_manuais.json";
+const LAUNCH_MODELS_OUTPUT_PATH = "data/lancamentos_modelos.json";
+const LAUNCH_INVESTMENTS_OUTPUT_PATH = "data/lancamentos_investimentos.json";
 const EVENTS_SHEET_NAME = "eventos_manuais";
+const LAUNCH_MODELS_SHEET_NAME = "lancamentos_modelos";
+const LAUNCH_INVESTMENTS_SHEET_NAME = "lancamentos_investimentos";
 const EVENTS_HEADER = [
   "event_id",
   "data_inicio",
@@ -24,6 +28,32 @@ const EVENTS_HEADER = [
   "updated_by",
   "updated_at",
   "deleted_at",
+];
+const LAUNCH_MODELS_HEADER = [
+  "modelo_id",
+  "modelo",
+  "linha",
+  "data_lancamento",
+  "termos_busca",
+  "sku_prefixos",
+  "status",
+  "observacao",
+];
+const LAUNCH_INVESTMENTS_HEADER = [
+  "modelo_id",
+  "modelo",
+  "data_inicio",
+  "data_fim",
+  "janela",
+  "canal",
+  "investimento_planejado",
+  "investimento_real",
+  "receita_planejada",
+  "receita_real",
+  "pedidos_planejados",
+  "pedidos_reais",
+  "status",
+  "observacao",
 ];
 
 const EXPORTS = [
@@ -255,8 +285,26 @@ function instalarBaseEventosManuais() {
   };
 }
 
+function instalarBaseLancamentos() {
+  const modelsSheet = getSheetWithHeader_(LAUNCH_MODELS_SHEET_NAME, LAUNCH_MODELS_HEADER);
+  const investmentsSheet = getSheetWithHeader_(LAUNCH_INVESTMENTS_SHEET_NAME, LAUNCH_INVESTMENTS_HEADER);
+  console.log(`Base de lancamentos pronta: ${modelsSheet.getParent().getUrl()}`);
+  return {
+    spreadsheet_url: modelsSheet.getParent().getUrl(),
+    sheets: [
+      { sheet_name: LAUNCH_MODELS_SHEET_NAME, columns: LAUNCH_MODELS_HEADER },
+      { sheet_name: LAUNCH_INVESTMENTS_SHEET_NAME, columns: LAUNCH_INVESTMENTS_HEADER },
+    ],
+    investments_sheet: investmentsSheet.getName(),
+  };
+}
+
 function exportarEventosManuais() {
   return commitEventosManuaisToGithub_("Update manual events");
+}
+
+function exportarLancamentos() {
+  return commitLancamentosToGithub_("Update launch planning sheets");
 }
 
 function instalarTriggerDiario() {
@@ -329,6 +377,28 @@ function executarExportacaoD1_(options) {
     }
   } else {
     console.log("eventos_manuais: EVENTS_SPREADSHEET_ID nao configurado; JSON atual mantido.");
+  }
+
+  const launchSheets = getLaunchSheetsForExport_();
+  manifest.files["lancamentos_modelos.json"] = {
+    rows: launchSheets.models.length,
+    bytes_processed: 0,
+    location: launchSheets.enabled ? "google_sheets" : "not_configured",
+    updated: !dryRun && launchSheets.enabled,
+  };
+  manifest.files["lancamentos_investimentos.json"] = {
+    rows: launchSheets.investments.length,
+    bytes_processed: 0,
+    location: launchSheets.enabled ? "google_sheets" : "not_configured",
+    updated: !dryRun && launchSheets.enabled,
+  };
+  if (launchSheets.enabled) {
+    console.log(`lancamentos_modelos (google_sheets): ${launchSheets.models.length} linha(s)`);
+    console.log(`lancamentos_investimentos (google_sheets): ${launchSheets.investments.length} linha(s)`);
+    if (!dryRun) {
+      payloads[LAUNCH_MODELS_OUTPUT_PATH] = toPrettyJson_(launchSheets.models);
+      payloads[LAUNCH_INVESTMENTS_OUTPUT_PATH] = toPrettyJson_(launchSheets.investments);
+    }
   }
 
   if (dryRun) {
@@ -506,6 +576,17 @@ function castBigQueryValue_(value, field) {
   }
 }
 
+function getLaunchSheetsForExport_() {
+  if (!hasEventsSpreadsheet_()) {
+    return { enabled: false, models: [], investments: [] };
+  }
+  return {
+    enabled: true,
+    models: readSheetObjects_(LAUNCH_MODELS_SHEET_NAME, LAUNCH_MODELS_HEADER, { includeDeleted: false }),
+    investments: readSheetObjects_(LAUNCH_INVESTMENTS_SHEET_NAME, LAUNCH_INVESTMENTS_HEADER, { includeDeleted: false }),
+  };
+}
+
 function getManualEventsForExport_() {
   if (!hasEventsSpreadsheet_()) {
     return { enabled: false, rows: [] };
@@ -521,6 +602,24 @@ function commitEventosManuaisToGithub_(message) {
   console.log(`Eventos manuais exportados: ${events.length} linha(s)`);
   return {
     rows: events.length,
+    commit: commit.sha || "",
+    url: commit.html_url || "",
+  };
+}
+
+function commitLancamentosToGithub_(message) {
+  const launchSheets = getLaunchSheetsForExport_();
+  if (!launchSheets.enabled) {
+    throw new Error("Configure a propriedade do script: EVENTS_SPREADSHEET_ID");
+  }
+  const payloads = {};
+  payloads[LAUNCH_MODELS_OUTPUT_PATH] = toPrettyJson_(launchSheets.models);
+  payloads[LAUNCH_INVESTMENTS_OUTPUT_PATH] = toPrettyJson_(launchSheets.investments);
+  const commit = commitFilesToGithub_(getConfig_(), payloads, message || "Update launch planning sheets");
+  console.log(`Lancamentos exportados: ${launchSheets.models.length} modelo(s), ${launchSheets.investments.length} linha(s) financeiras`);
+  return {
+    models: launchSheets.models.length,
+    investments: launchSheets.investments.length,
     commit: commit.sha || "",
     url: commit.html_url || "",
   };
@@ -618,23 +717,57 @@ function normalizeManualEventPayload_(payload, existing, user) {
 }
 
 function getManualEventsSheet_() {
+  return getSheetWithHeader_(EVENTS_SHEET_NAME, EVENTS_HEADER);
+}
+
+function ensureManualEventsHeader_(sheet) {
+  sheet.getRange(1, 1, 1, EVENTS_HEADER.length).setValues([EVENTS_HEADER]);
+  sheet.setFrozenRows(1);
+}
+
+function getSheetWithHeader_(sheetName, header) {
   const spreadsheetId = PropertiesService.getScriptProperties().getProperty("EVENTS_SPREADSHEET_ID");
   if (!spreadsheetId) {
     throw new Error("Configure a propriedade do script: EVENTS_SPREADSHEET_ID");
   }
 
   const spreadsheet = SpreadsheetApp.openById(spreadsheetId);
-  let sheet = spreadsheet.getSheetByName(EVENTS_SHEET_NAME);
+  let sheet = spreadsheet.getSheetByName(sheetName);
   if (!sheet) {
-    sheet = spreadsheet.insertSheet(EVENTS_SHEET_NAME);
+    sheet = spreadsheet.insertSheet(sheetName);
   }
-  ensureManualEventsHeader_(sheet);
+  ensureSheetHeader_(sheet, header);
   return sheet;
 }
 
-function ensureManualEventsHeader_(sheet) {
-  sheet.getRange(1, 1, 1, EVENTS_HEADER.length).setValues([EVENTS_HEADER]);
+function ensureSheetHeader_(sheet, header) {
+  sheet.getRange(1, 1, 1, header.length).setValues([header]);
   sheet.setFrozenRows(1);
+}
+
+function readSheetObjects_(sheetName, header, options) {
+  const includeDeleted = Boolean(options && options.includeDeleted);
+  const sheet = getSheetWithHeader_(sheetName, header);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  const rows = sheet.getRange(2, 1, lastRow - 1, header.length).getValues();
+  return rows
+    .map((row) => sheetRowToObject_(row, header))
+    .filter((item) => Object.keys(item).some((key) => item[key]))
+    .filter((item) => includeDeleted || isActiveSheetObject_(item));
+}
+
+function sheetRowToObject_(row, header) {
+  const output = {};
+  header.forEach((field, index) => {
+    output[field] = normalizeSheetValue_(row[index], field);
+  });
+  return output;
+}
+
+function isActiveSheetObject_(item) {
+  return !item.deleted_at && String(item.status || "").toLowerCase() !== "excluido";
 }
 
 function findManualEventRow_(sheet, eventId) {
@@ -665,7 +798,7 @@ function eventObjectToRow_(event) {
 function normalizeSheetValue_(value, field) {
   if (value === null || value === undefined) return "";
   if (value instanceof Date) {
-    if (field === "data_inicio" || field === "data_fim") {
+    if (field === "data_inicio" || field === "data_fim" || field === "data_lancamento") {
       return Utilities.formatDate(value, TZ, "yyyy-MM-dd");
     }
     return Utilities.formatDate(value, "UTC", "yyyy-MM-dd'T'HH:mm:ss'Z'");

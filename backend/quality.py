@@ -14,6 +14,18 @@ SOURCE_CONFIG = {
     "utms": {"file": "utms_dia.json", "label": "UTMs", "date_field": "data", "required": True},
     "estoque": {"file": "estoque.json", "label": "Estoque", "date_field": None, "required": True},
     "metas": {"file": "metas_comerciais.json", "label": "Metas", "date_field": None, "required": False},
+    "lancamentos_modelos": {
+        "file": "lancamentos_modelos.json",
+        "label": "Modelos de lancamento",
+        "date_field": "data_lancamento",
+        "required": False,
+    },
+    "lancamentos_investimentos": {
+        "file": "lancamentos_investimentos.json",
+        "label": "Investimentos de lancamento",
+        "date_field": "data_inicio",
+        "required": False,
+    },
     "eventos_manuais": {
         "file": "eventos_manuais.json",
         "label": "Eventos manuais",

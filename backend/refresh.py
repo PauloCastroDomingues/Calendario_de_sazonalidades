@@ -22,6 +22,8 @@ DATA_FILES = {
     "estoque": "estoque.json",
     "metas": "metas_comerciais.json",
     "manifest": "manifest.json",
+    "lancamentos_modelos": "lancamentos_modelos.json",
+    "lancamentos_investimentos": "lancamentos_investimentos.json",
 }
 
 

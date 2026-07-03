@@ -9,6 +9,8 @@ const DATA_FILES = {
   metas: { path: "data/metas_comerciais.json", optional: true },
   manifest: { path: "data/manifest.json", optional: true },
   eventosManuais: { path: "data/eventos_manuais.json", optional: true },
+  lancamentosModelos: { path: "data/lancamentos_modelos.json", optional: true },
+  lancamentosInvestimentos: { path: "data/lancamentos_investimentos.json", optional: true },
 };
 
 const MANUAL_EVENTS_STORAGE_KEY = "reise_eventos_manuais";
@@ -68,6 +70,63 @@ const FLUCTUATION_METRICS = [
   { key: "investimento_total_mkt", label: "Investimento", formatter: formatCurrency },
   { key: "roas_mkt", label: "ROAS", formatter: formatRoas },
   { key: "taxa_conversao", label: "Conversão", formatter: formatPercent },
+];
+
+const LAUNCH_MODEL_PATTERNS = [
+  { pattern: /\brs\s*8\s*avant\b|\brs8avant\b/, name: "RS8 Avant" },
+  { pattern: /\brs\s*7\s*avant\b|\brs7avant\b/, name: "RS7 Avant" },
+  { pattern: /\brs\s*6\s*avant\b|\brs6avant\b/, name: "RS6 Avant" },
+  { pattern: /\brs\s*6\s*gt\b|\brs6gt\b/, name: "RS6 GT" },
+  { pattern: /\brs\s*7\s*gt\b|\brs7gt\b/, name: "RS7 GT" },
+  { pattern: /\bknit\s*gt\b|\bknitgt\b/, name: "KNIT GT" },
+  { pattern: /\b911\s*gt\b|\b911gt\b/, name: "911 GT" },
+  { pattern: /\brs\s*8\b|\brs8\b/, name: "RS8" },
+  { pattern: /\brs\s*7\b|\brs7\b/, name: "RS7" },
+  { pattern: /\brs\s*6\b|\brs6\b/, name: "RS6" },
+  { pattern: /\bphantom\s*slip\b|\bphantomslip\b/, name: "Phantom Slip" },
+  { pattern: /\bphantom\s*easy\b|\bphantomeasy\b/, name: "Phantom Easy" },
+  { pattern: /\bphantom\s*knit\b|\bphantomknit\b/, name: "Phantom Knit" },
+  { pattern: /\bphantom\b/, name: "Phantom" },
+  { pattern: /\bmacan\b/, name: "Macan I" },
+  { pattern: /\brsx\b|\btn\s*rsx\b/, name: "RSX" },
+  { pattern: /\bdenver\b/, name: "Denver" },
+  { pattern: /\bmunich\b/, name: "Munich" },
+  { pattern: /\bmanhattan\b/, name: "Manhattan" },
+  { pattern: /\bessential\b/, name: "Essential" },
+  { pattern: /\bzurich\b/, name: "Zurich" },
+];
+
+const LAUNCH_COLOR_CODES = {
+  AB: "All Black",
+  AW: "All White",
+  B: "Branco",
+  C: "Cinza",
+  M: "Marrom",
+  MAR: "Marrom",
+  MR: "Marinho",
+  O: "Oliva",
+  OW: "Off White",
+  P: "Preto",
+  PTO: "Preto",
+};
+
+const LAUNCH_COLOR_WORDS = [
+  "All Black",
+  "All White",
+  "Azul Marinho",
+  "Branco",
+  "Camurca",
+  "Caramelo",
+  "Cinza",
+  "Marinho",
+  "Marrom Oliva",
+  "Marrom",
+  "Nude",
+  "Off White",
+  "Oliva",
+  "Preto",
+  "Prata",
+  "Verde oliva",
 ];
 
 const MONTH_NAMES = [
@@ -286,7 +345,9 @@ function bindControls() {
     const query = normalizeComparableText(state.launch.productSearch || "");
     const visibleProducts = products.filter((product) => {
       if (!query) return true;
-      return normalizeComparableText(`${product.name} ${product.sku} ${product.productKey}`).includes(query);
+      return normalizeComparableText(
+        `${product.name} ${product.sku} ${product.productKey} ${(product.colorSummary || []).map((item) => item.label).join(" ")}`
+      ).includes(query);
     });
     state.launch.productKeys = visibleProducts.slice(0, 3).map((product) => product.key);
     renderLaunchProductPicker(products);
@@ -547,6 +608,10 @@ function normalizeCalendarPayload(payload = {}) {
     metas: payload.metas || {},
     manifest: payload.manifest || {},
     eventosManuais: normalizeManualEventsList(payload.eventos_manuais || payload.eventosManuais || []),
+    lancamentosModelos: normalizeLaunchModelConfigList(payload.lancamentos_modelos || payload.lancamentosModelos || []),
+    lancamentosInvestimentos: normalizeLaunchInvestmentList(
+      payload.lancamentos_investimentos || payload.lancamentosInvestimentos || []
+    ),
     analytics,
     dataQuality: payload.data_quality || payload.dataQuality || analytics?.data_quality || null,
   };
@@ -560,6 +625,65 @@ function normalizeManualEventsList(events = []) {
       id: event.id || event.event_id || buildManualEventId(event),
       event_id: event.event_id || event.id || buildManualEventId(event),
     }));
+}
+
+function normalizeLaunchModelConfigList(rows = []) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => String(row.status || "Ativo").toLowerCase() !== "excluido")
+    .map((row) => {
+      const modelName = cleanLaunchText(row.modelo || row.model || row.nome_modelo || row.linha || "");
+      const modelId = cleanLaunchText(row.modelo_id || row.model_id || modelName);
+      const searchTerms = [
+        modelName,
+        row.linha,
+        row.termos_busca,
+        row.sku_prefixos,
+        row.sku_prefix,
+        row.product_key,
+      ]
+        .flatMap((value) => splitLaunchTerms(value || ""))
+        .filter(Boolean);
+      return {
+        ...row,
+        modelo_id: modelId,
+        modelo: modelName,
+        model_key: slug(modelId || modelName),
+        data_lancamento: normalizeDateKey(row.data_lancamento || row.launch_date || row.data_inicio || row.data),
+        linha: cleanLaunchText(row.linha || ""),
+        termos_busca: [...new Set(searchTerms)],
+        status: cleanLaunchText(row.status || "Ativo"),
+        observacao: cleanLaunchText(row.observacao || row.obs || ""),
+      };
+    })
+    .filter((row) => row.modelo && row.model_key);
+}
+
+function normalizeLaunchInvestmentList(rows = []) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter((row) => String(row.status || "Ativo").toLowerCase() !== "excluido")
+    .map((row) => {
+      const modelName = cleanLaunchText(row.modelo || row.model || row.nome_modelo || "");
+      const modelId = cleanLaunchText(row.modelo_id || row.model_id || modelName);
+      return {
+        ...row,
+        modelo_id: modelId,
+        modelo: modelName,
+        model_key: slug(modelId || modelName),
+        data_inicio: normalizeDateKey(row.data_inicio || row.start_date || row.data),
+        data_fim: normalizeDateKey(row.data_fim || row.end_date || row.data_inicio || row.data),
+        janela: cleanLaunchText(row.janela || row.window || ""),
+        canal: cleanLaunchText(row.canal || row.channel || "Planejado"),
+        investimento_planejado: parseLaunchNumber(row.investimento_planejado),
+        investimento_real: parseLaunchNumber(row.investimento_real || row.investimento),
+        receita_planejada: parseLaunchNumber(row.receita_planejada || row.receita_meta),
+        receita_real: parseLaunchNumber(row.receita_real || row.receita),
+        pedidos_planejados: parseLaunchNumber(row.pedidos_planejados || row.pedidos_meta),
+        pedidos_reais: parseLaunchNumber(row.pedidos_reais || row.pedidos),
+        status: cleanLaunchText(row.status || "Ativo"),
+        observacao: cleanLaunchText(row.observacao || row.obs || ""),
+      };
+    })
+    .filter((row) => row.modelo && row.model_key);
 }
 
 function isActiveManualEvent(event = {}) {
@@ -1314,7 +1438,7 @@ function populateLaunchControls() {
   if (!state.launch.productKeys.length && products.length) state.launch.productKeys = [products[0].key];
   if (!state.launch.launchDate) {
     const selectedProduct = products.find((product) => state.launch.productKeys.includes(product.key));
-    state.launch.launchDate = selectedProduct?.firstDate || getDataCutoffKey() || currentDateKey();
+    state.launch.launchDate = selectedProduct?.launchDate || selectedProduct?.firstDate || getDataCutoffKey() || currentDateKey();
   }
 
   eventSelect.innerHTML = [
@@ -1345,7 +1469,9 @@ function renderLaunchProductPicker(products) {
   const filtered = products
     .filter((product) => {
       if (!query) return true;
-      return normalizeComparableText(`${product.name} ${product.sku} ${product.productKey}`).includes(query);
+      return normalizeComparableText(
+        `${product.name} ${product.sku} ${product.productKey} ${(product.colorSummary || []).map((item) => item.label).join(" ")}`
+      ).includes(query);
     })
     .slice(0, 80);
 
@@ -1355,7 +1481,7 @@ function renderLaunchProductPicker(products) {
         .slice(0, 6)
         .map((product) => `<span>${escapeHtml(product.name)}</span>`)
         .join("")
-    : `<span>Nenhum produto selecionado</span>`;
+    : `<span>Nenhum modelo selecionado</span>`;
 
   list.innerHTML =
     filtered
@@ -1366,7 +1492,7 @@ function renderLaunchProductPicker(products) {
             <span class="launch-checkbox" aria-hidden="true">${checked ? "✓" : ""}</span>
             <span class="launch-product-option-main">
               <strong>${escapeHtml(product.name)}</strong>
-              <small>${escapeHtml(product.sku || product.productKey || product.key)}</small>
+              <small>${escapeHtml(launchProductMetaLabel(product))}</small>
             </span>
             <span class="launch-product-option-meta">
               <strong>${formatCompactCurrency(product.revenue)}</strong>
@@ -1375,7 +1501,7 @@ function renderLaunchProductPicker(products) {
           </button>
         `;
       })
-      .join("") || `<div class="launch-product-empty">Nenhum produto encontrado para essa busca.</div>`;
+      .join("") || `<div class="launch-product-empty">Nenhum modelo encontrado para essa busca.</div>`;
 }
 
 function handleLaunchProductListClick(event) {
@@ -1411,7 +1537,13 @@ function buildLaunchWorkbenchAnalysis() {
   const selectedProducts = products.filter((product) => state.launch.productKeys.includes(product.key));
   const productKeys = selectedProducts.map((product) => product.key);
   const launchEvent = collectLaunchEvents().find((event) => event.id === state.launch.eventId) || null;
-  const launchDate = state.launch.launchDate || launchEvent?.data_inicio || selectedProducts[0]?.firstDate || getDataCutoffKey() || currentDateKey();
+  const launchDate =
+    state.launch.launchDate ||
+    launchEvent?.data_inicio ||
+    selectedProducts[0]?.launchDate ||
+    selectedProducts[0]?.firstDate ||
+    getDataCutoffKey() ||
+    currentDateKey();
   const windowDays = Number(state.launch.windowDays || 90);
   const cutoff = getDataCutoffKey();
   const plannedEnd = addDays(launchDate, windowDays - 1);
@@ -1426,6 +1558,7 @@ function buildLaunchWorkbenchAnalysis() {
   const metrics = getMetricSummary(actualKeys);
   const baselineMetrics = getMetricSummary(baselineKeys);
   const media = summarizeLaunchWorkbenchMedia(actualKeys, launchEvent);
+  const planning = summarizeLaunchPlanning(actualKeys, selectedProducts);
   const windows = buildLaunchWorkbenchWindows(launchDate, cutoff, productKeys, launchEvent);
   const curve = buildLaunchCurve(actualKeys, selectedProducts);
 
@@ -1445,6 +1578,7 @@ function buildLaunchWorkbenchAnalysis() {
     metrics,
     baselineMetrics,
     media,
+    planning,
     windows,
     curve,
     revenueVariation: calculateVariation(productSummary.revenue, baselineProductSummary.revenue),
@@ -1460,7 +1594,7 @@ function renderLaunchInsight(analysis) {
   status.textContent = analysis.cutoff ? `Dados até ${formatShortDate(analysis.cutoff)}` : "Sem corte D-1";
   if (!analysis.selectedProducts.length) {
     target.innerHTML = `
-      <strong>Selecione ao menos um produto para iniciar.</strong>
+      <strong>Selecione ao menos um modelo para iniciar.</strong>
       <span>A curva usa o cache D-1 ja exportado; trocar filtro nao consulta BigQuery.</span>
     `;
     return;
@@ -1470,7 +1604,7 @@ function renderLaunchInsight(analysis) {
   const productLabel =
     analysis.selectedProducts.length === 1
       ? analysis.selectedProducts[0].name
-      : `${analysis.selectedProducts.length} produtos selecionados`;
+      : `${analysis.selectedProducts.length} modelos selecionados`;
   const productVariation =
     analysis.revenueVariation.percentChange === null ? "sem baseline do produto" : analysis.revenueVariation.label;
   const actualText = analysis.hasActuals
@@ -1479,7 +1613,7 @@ function renderLaunchInsight(analysis) {
 
   target.innerHTML = `
     <strong>${escapeHtml(eventName)} · ${escapeHtml(productLabel)}</strong>
-    <span>Janela analisada: ${actualText}. Produto vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.</span>
+    <span>Janela analisada: ${actualText}. Modelo vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.</span>
   `;
 }
 
@@ -1492,9 +1626,10 @@ function renderLaunchMetricGrid(analysis) {
     analysis.metrics.clientes_novos,
     analysis.metrics.clientes_novos + analysis.metrics.clientes_recorrentes
   );
+  const planning = analysis.planning || {};
   const cards = [
-    ["Receita produto", formatCurrency(analysis.productSummary.revenue), variationBadge(analysis.revenueVariation)],
-    ["Itens produto", formatInteger(analysis.productSummary.items), `${formatCurrency(productTicket)} por item`],
+    ["Receita modelo", formatCurrency(analysis.productSummary.revenue), variationBadge(analysis.revenueVariation)],
+    ["Itens modelo", formatInteger(analysis.productSummary.items), `${formatCurrency(productTicket)} por item`],
     ["Faturamento geral", formatCurrency(analysis.metrics.receita_total), variationBadge(analysis.contextRevenueVariation)],
     ["Pedidos", formatInteger(analysis.metrics.pedidos_aprovados), `Ticket ${formatCurrency(analysis.metrics.ticket_medio)}`],
     ["Conversão", formatPercent(analysis.metrics.taxa_conversao), `${formatInteger(analysis.metrics.sessoes)} sessões`],
@@ -1502,6 +1637,21 @@ function renderLaunchMetricGrid(analysis) {
     ["Investimento", formatCurrency(analysis.media.investment), `${formatDecimal(analysis.media.ordersPer1k)} pedidos / R$1k`],
     ["ROAS / CPA", `${formatRoas(analysis.media.roas)} · ${formatCurrency(analysis.media.cpa)}`, `${formatCurrency(analysis.media.attributedRevenue)} UTM`],
   ];
+
+  if (planning.rows) {
+    cards.push(
+      [
+        "Invest. planilha",
+        formatCurrency(planning.investmentReal || planning.investmentPlanned),
+        `Planejado ${formatCurrency(planning.investmentPlanned)}`,
+      ],
+      [
+        "Receita planilha",
+        formatCurrency(planning.revenueReal || planning.revenuePlanned),
+        `Planejado ${formatCurrency(planning.revenuePlanned)}`,
+      ]
+    );
+  }
 
   target.innerHTML = cards
     .map(
@@ -1541,13 +1691,15 @@ function renderLaunchProductCards(analysis) {
       const baselineItem = baseline.byProduct[0] || { revenue: 0, items: 0 };
       const variation = calculateVariation(currentItem.revenue, baselineItem.revenue);
       const share = safeDivide(currentItem.revenue, totalRevenue);
-      const stock = state.indexes.estoque[product.sku] || {};
+      const stock = summarizeLaunchStock(product);
+      const colorRows = renderLaunchBreakdownBars(currentItem.colorSummary || product.colorSummary || [], currentItem.items || product.items);
+      const sizeRows = renderLaunchSizeChips(currentItem.sizeSummary || product.sizeSummary || []);
       return `
         <article class="launch-product-card launch-product-tone-${(index % 6) + 1}">
           <div>
-            <span>Produto ${index + 1}</span>
+            <span>Modelo ${index + 1}</span>
             <h3>${escapeHtml(product.name)}</h3>
-            <p>${escapeHtml(product.sku || product.productKey || product.key)}</p>
+            <p>${escapeHtml(launchProductMetaLabel(product))}</p>
           </div>
           <div class="launch-product-card-metrics">
             <span>Receita <strong>${formatCurrency(currentItem.revenue)}</strong></span>
@@ -1555,8 +1707,16 @@ function renderLaunchProductCards(analysis) {
             <span>Share <strong>${formatPercent(share)}</strong></span>
             <span>Vs. base <strong>${variation.label}</strong></span>
           </div>
+          <div class="launch-variant-breakdown">
+            <strong>Top cores</strong>
+            ${colorRows || `<small>Sem cor mapeada</small>`}
+          </div>
+          <div class="launch-size-strip">
+            <strong>Tamanhos</strong>
+            <div>${sizeRows || `<span>Sem tamanho</span>`}</div>
+          </div>
           <footer>
-            <span>${stock.risk_status ? `Estoque: ${escapeHtml(stock.risk_status)}` : "Estoque sem sinal"}</span>
+            <span>${stock.status ? `Estoque: ${escapeHtml(stock.status)}` : "Estoque sem sinal"}</span>
             <span>${formatCurrency(safeDivide(currentItem.revenue, currentItem.items))} por item</span>
           </footer>
         </article>
@@ -1585,7 +1745,7 @@ function renderLaunchCurves(analysis) {
     "launchDailyChart",
     labels,
     [
-      { label: "Itens produto", data: analysis.curve.dailyItems, color: "#b98d43", fill: true },
+      { label: "Itens modelo", data: analysis.curve.dailyItems, color: "#b98d43", fill: true },
       { label: "Pedidos contexto", data: analysis.curve.dailyOrders, color: "#1e5a49", fill: false },
     ],
     formatInteger
@@ -1612,12 +1772,14 @@ function renderLaunchProductTable(analysis) {
   const body = document.getElementById("launchProductTable");
   if (!body) return;
   body.innerHTML =
-    analysis.productSummary.byProduct
+    analysis.productSummary.byVariant
       .map((item) => {
         const stock = state.indexes.estoque[item.sku] || {};
         return `
           <tr>
-            <td><strong>${escapeHtml(item.name)}</strong><br><span>${escapeHtml(item.sku || item.key)}</span></td>
+            <td><strong>${escapeHtml(item.modelName || item.name)}</strong><br><span>${escapeHtml(item.sku || item.key)}</span></td>
+            <td>${escapeHtml(item.color || "Sem cor")}</td>
+            <td>${escapeHtml(item.size || "Sem tamanho")}</td>
             <td class="numeric-cell">${formatCurrency(item.revenue)}</td>
             <td class="numeric-cell">${formatInteger(item.items)}</td>
             <td class="numeric-cell">${formatCurrency(safeDivide(item.revenue, item.items))}</td>
@@ -1625,13 +1787,14 @@ function renderLaunchProductTable(analysis) {
           </tr>
         `;
       })
-      .join("") || emptyTableRow(5);
+      .join("") || emptyTableRow(7);
 }
 
 function renderLaunchMediaGrid(analysis) {
   const target = document.getElementById("launchMediaGrid");
   if (!target) return;
   const media = analysis.media;
+  const planning = analysis.planning || {};
   const items = [
     ["Investimento", formatCurrency(media.investment), `${formatInteger(media.campaigns)} campanha(s)`],
     ["Receita UTM", formatCurrency(media.attributedRevenue), `${formatInteger(media.attributedOrders)} pedido(s)`],
@@ -1640,6 +1803,14 @@ function renderLaunchMediaGrid(analysis) {
     ["CTR", formatPercent(media.ctr), `${formatInteger(media.impressions)} impressões`],
     ["Pedidos / R$1k", formatDecimal(media.ordersPer1k), media.filtered ? "campanha vinculada" : "janela completa"],
   ];
+  if (planning.rows) {
+    items.push(
+      ["Investimento planilha", formatCurrency(planning.investmentReal || planning.investmentPlanned), `${formatInteger(planning.rows)} linha(s)`],
+      ["Receita planilha", formatCurrency(planning.revenueReal || planning.revenuePlanned), `Pedidos ${formatInteger(planning.ordersReal || planning.ordersPlanned)}`],
+      ["ROAS planilha", formatRoas(planning.roas), `CPA ${formatCurrency(planning.cpa)}`]
+    );
+  }
+
   target.innerHTML = items
     .map(
       ([label, value, note]) => `
@@ -1669,29 +1840,71 @@ function isLaunchManualEvent(event = {}) {
 
 function collectLaunchProducts() {
   const map = new Map();
+  const modelConfigs = state.data.lancamentosModelos || [];
   (state.data.produtos || []).forEach((row) => {
-    const key = productComparisonKey(row);
+    const identity = launchModelIdentity(row, modelConfigs);
+    const key = identity.key;
     if (!key) return;
+    const variant = parseLaunchVariant(row);
     const current = map.get(key) || {
       key,
+      modelKey: key,
       sku: row.sku || "",
       productKey: row.product_key || "",
-      name: row.product_name || row.product_key || row.sku || key,
+      name: identity.name,
+      launchDate: identity.config?.data_lancamento || "",
+      config: identity.config || null,
       firstDate: row.data || "",
       lastDate: row.data || "",
       revenue: 0,
       items: 0,
+      skus: new Set(),
+      colors: new Map(),
+      sizes: new Map(),
     };
     current.sku = current.sku || row.sku || "";
     current.productKey = current.productKey || row.product_key || "";
-    current.name = current.name || row.product_name || key;
+    current.name = current.name || identity.name;
+    current.launchDate = current.launchDate || identity.config?.data_lancamento || "";
     current.firstDate = !current.firstDate || row.data < current.firstDate ? row.data : current.firstDate;
     current.lastDate = !current.lastDate || row.data > current.lastDate ? row.data : current.lastDate;
     current.revenue += Number(row.receita_produto || 0);
     current.items += Number(row.itens_vendidos || 0);
+    if (row.sku) current.skus.add(row.sku);
+    addLaunchBreakdownValue(current.colors, variant.color, row);
+    addLaunchBreakdownValue(current.sizes, variant.size, row);
     map.set(key, current);
   });
-  return [...map.values()].sort((a, b) => b.revenue - a.revenue);
+
+  modelConfigs.forEach((config) => {
+    if (map.has(config.model_key)) return;
+    map.set(config.model_key, {
+      key: config.model_key,
+      modelKey: config.model_key,
+      sku: "",
+      productKey: "",
+      name: config.modelo,
+      launchDate: config.data_lancamento || "",
+      config,
+      firstDate: config.data_lancamento || "",
+      lastDate: config.data_lancamento || "",
+      revenue: 0,
+      items: 0,
+      skus: new Set(),
+      colors: new Map(),
+      sizes: new Map(),
+    });
+  });
+
+  return [...map.values()]
+    .map((product) => ({
+      ...product,
+      skuCount: product.skus.size,
+      colorSummary: launchBreakdownEntries(product.colors, 3),
+      sizeSummary: launchBreakdownEntries(product.sizes, 8),
+      skus: [...product.skus],
+    }))
+    .sort((a, b) => b.revenue - a.revenue || String(a.name).localeCompare(String(b.name)));
 }
 
 function matchProductKeysForLaunchEvent(event, products) {
@@ -1713,41 +1926,220 @@ function splitLaunchTerms(value = "") {
     .filter(Boolean);
 }
 
+function launchModelIdentity(row = {}, configs = []) {
+  const text = normalizeComparableText(`${row.product_name || ""} ${row.product_key || ""} ${row.sku || ""}`);
+  const matchedConfig = configs.find((config) => {
+    if (!config.termos_busca?.length) return false;
+    return config.termos_busca.some((term) => term && text.includes(term));
+  });
+  if (matchedConfig) {
+    return { key: matchedConfig.model_key, name: matchedConfig.modelo, config: matchedConfig };
+  }
+
+  const pattern = LAUNCH_MODEL_PATTERNS.find((item) => item.pattern.test(text));
+  const name = pattern?.name || inferLaunchFallbackModelName(row);
+  return { key: slug(name), name, config: null };
+}
+
+function inferLaunchFallbackModelName(row = {}) {
+  const rawName = cleanLaunchText(row.product_name || row.product_key || row.sku || "Modelo sem nome");
+  const beforeVariant = rawName.split(" - ")[0].trim();
+  return beforeVariant || rawName;
+}
+
+function parseLaunchVariant(row = {}) {
+  const name = cleanLaunchText(row.product_name || "");
+  const skuParts = String(row.sku || "")
+    .toUpperCase()
+    .split("-")
+    .filter(Boolean);
+  const variantText = cleanLaunchText(row.variant_title || name.split(" - ").slice(1).join(" - "));
+  const variantParts = variantText
+    .split("/")
+    .map((item) => cleanLaunchText(item))
+    .filter(Boolean);
+  const skuSize = [...skuParts].reverse().find((part) => /^\d{2}$|^(PP|P|M|G|GG|XG|XXG)$/i.test(part));
+  const skuColorCode = skuParts.find((part) => LAUNCH_COLOR_CODES[part]);
+  const color =
+    variantParts[0] ||
+    (skuColorCode ? LAUNCH_COLOR_CODES[skuColorCode] : "") ||
+    inferColorFromName(name) ||
+    "Sem cor";
+  const size = variantParts[1] || skuSize || "Sem tamanho";
+  return { color, size };
+}
+
+function inferColorFromName(value = "") {
+  const text = normalizeComparableText(value);
+  const match = LAUNCH_COLOR_WORDS.find((color) => text.includes(normalizeComparableText(color)));
+  return match || "";
+}
+
+function addLaunchBreakdownValue(map, label, row = {}) {
+  const normalizedLabel = cleanLaunchText(label || "Nao informado");
+  const current = map.get(normalizedLabel) || { label: normalizedLabel, revenue: 0, items: 0 };
+  current.revenue += Number(row.receita_produto || 0);
+  current.items += Number(row.itens_vendidos || 0);
+  map.set(normalizedLabel, current);
+}
+
+function launchBreakdownEntries(map, limit = 5) {
+  return [...map.values()].sort((a, b) => b.items - a.items || b.revenue - a.revenue).slice(0, limit);
+}
+
+function launchProductMetaLabel(product = {}) {
+  const colorCount = product.colorSummary?.length || 0;
+  const sizeCount = product.sizeSummary?.length || 0;
+  const skuCount = product.skuCount || product.skus?.length || 0;
+  const parts = [];
+  if (colorCount) parts.push(`${colorCount} cor${colorCount === 1 ? "" : "es"}`);
+  if (sizeCount) parts.push(`${sizeCount} tamanho${sizeCount === 1 ? "" : "s"}`);
+  if (skuCount) parts.push(`${skuCount} SKU${skuCount === 1 ? "" : "s"}`);
+  if (product.launchDate) parts.push(`Lanc. ${formatShortDate(product.launchDate)}`);
+  return parts.join(" · ") || product.productKey || product.sku || product.key;
+}
+
+function renderLaunchBreakdownBars(items = [], totalItems = 0) {
+  return items
+    .slice(0, 3)
+    .map((item) => {
+      const pct = Math.min(100, Math.max(4, safeDivide(item.items, totalItems) * 100));
+      return `
+        <div class="launch-breakdown-row">
+          <span>${escapeHtml(item.label)}</span>
+          <div><i style="width:${pct}%"></i></div>
+          <strong>${formatInteger(item.items)}</strong>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderLaunchSizeChips(items = []) {
+  return items
+    .slice(0, 10)
+    .map((item) => `<span>${escapeHtml(item.label)} · ${formatInteger(item.items)}</span>`)
+    .join("");
+}
+
+function summarizeLaunchStock(product = {}) {
+  const skus = product.skus?.length ? product.skus : [product.sku].filter(Boolean);
+  const rows = skus.map((sku) => state.indexes.estoque[sku]).filter(Boolean);
+  if (!rows.length) return { status: "", risky: 0 };
+  const risky = rows.filter((row) => isStockRisky(row.risk_status)).length;
+  const status = risky ? `${risky}/${rows.length} SKU em risco` : "Saudavel";
+  return { status, risky };
+}
+
+function summarizeLaunchPlanning(dateKeys, selectedProducts) {
+  const selectedKeys = new Set(selectedProducts.map((product) => product.key));
+  const selectedNames = selectedProducts.map((product) => normalizeComparableText(product.name));
+  const selectedStart = dateKeys[0] || "";
+  const selectedEnd = dateKeys[dateKeys.length - 1] || "";
+  const rows = (state.data.lancamentosInvestimentos || []).filter((row) => {
+    const rowKey = row.model_key || slug(row.modelo_id || row.modelo || "");
+    const rowName = normalizeComparableText(row.modelo || row.modelo_id || "");
+    const rowStart = row.data_inicio || selectedStart;
+    const rowEnd = row.data_fim || rowStart;
+    const dateMatches = !dateKeys.length || !rowStart || !(rowEnd < selectedStart || rowStart > selectedEnd);
+    return dateMatches && (selectedKeys.has(rowKey) || selectedNames.some((name) => name && rowName.includes(name)));
+  });
+  const investmentPlanned = rows.reduce((sum, row) => sum + Number(row.investimento_planejado || 0), 0);
+  const investmentReal = rows.reduce((sum, row) => sum + Number(row.investimento_real || 0), 0);
+  const revenuePlanned = rows.reduce((sum, row) => sum + Number(row.receita_planejada || 0), 0);
+  const revenueReal = rows.reduce((sum, row) => sum + Number(row.receita_real || 0), 0);
+  const ordersPlanned = rows.reduce((sum, row) => sum + Number(row.pedidos_planejados || 0), 0);
+  const ordersReal = rows.reduce((sum, row) => sum + Number(row.pedidos_reais || 0), 0);
+  const investmentForEfficiency = investmentReal || investmentPlanned;
+  const revenueForEfficiency = revenueReal || revenuePlanned;
+  const ordersForEfficiency = ordersReal || ordersPlanned;
+  return {
+    rows: rows.length,
+    investmentPlanned,
+    investmentReal,
+    revenuePlanned,
+    revenueReal,
+    ordersPlanned,
+    ordersReal,
+    roas: safeDivide(revenueForEfficiency, investmentForEfficiency),
+    cpa: safeDivide(investmentForEfficiency, ordersForEfficiency),
+  };
+}
+
 function filterProductRowsByKeys(dateKeys, productKeys) {
   const keySet = new Set(productKeys);
   if (!dateKeys.length || !keySet.size) return [];
+  const modelConfigs = state.data.lancamentosModelos || [];
   return dateKeys
     .flatMap((dateKey) => state.indexes.produtos[dateKey] || [])
-    .filter((row) => keySet.has(productComparisonKey(row)));
+    .filter((row) => keySet.has(launchModelIdentity(row, modelConfigs).key));
 }
 
 function summarizeLaunchWorkbenchProducts(rows, selectedProducts) {
   const byKey = new Map(
     selectedProducts.map((product) => [
       product.key,
-      { key: product.key, sku: product.sku, name: product.name, revenue: 0, items: 0 },
+      { key: product.key, sku: product.sku, name: product.name, revenue: 0, items: 0, colors: new Map(), sizes: new Map() },
     ])
   );
+  const byVariant = new Map();
+  const byColor = new Map();
+  const bySize = new Map();
+  const modelConfigs = state.data.lancamentosModelos || [];
+
   rows.forEach((row) => {
-    const key = productComparisonKey(row);
+    const identity = launchModelIdentity(row, modelConfigs);
+    const key = identity.key;
+    const variant = parseLaunchVariant(row);
     const current = byKey.get(key) || {
       key,
       sku: row.sku || "",
-      name: row.product_name || key,
+      name: identity.name,
+      revenue: 0,
+      items: 0,
+      colors: new Map(),
+      sizes: new Map(),
+    };
+    current.sku = current.sku || row.sku || "";
+    current.name = current.name || identity.name;
+    current.revenue += Number(row.receita_produto || 0);
+    current.items += Number(row.itens_vendidos || 0);
+    addLaunchBreakdownValue(current.colors, variant.color, row);
+    addLaunchBreakdownValue(current.sizes, variant.size, row);
+    byKey.set(key, current);
+
+    const variantKey = `${key}:${variant.color}:${variant.size}:${row.sku || ""}`;
+    const variantItem = byVariant.get(variantKey) || {
+      key: variantKey,
+      modelKey: key,
+      modelName: identity.name,
+      sku: row.sku || "",
+      name: row.product_name || identity.name,
+      color: variant.color,
+      size: variant.size,
       revenue: 0,
       items: 0,
     };
-    current.sku = current.sku || row.sku || "";
-    current.name = current.name || row.product_name || key;
-    current.revenue += Number(row.receita_produto || 0);
-    current.items += Number(row.itens_vendidos || 0);
-    byKey.set(key, current);
+    variantItem.revenue += Number(row.receita_produto || 0);
+    variantItem.items += Number(row.itens_vendidos || 0);
+    byVariant.set(variantKey, variantItem);
+    addLaunchBreakdownValue(byColor, variant.color, row);
+    addLaunchBreakdownValue(bySize, variant.size, row);
   });
-  const byProduct = [...byKey.values()].sort((a, b) => b.revenue - a.revenue);
+  const byProduct = [...byKey.values()]
+    .map((item) => ({
+      ...item,
+      colorSummary: launchBreakdownEntries(item.colors, 3),
+      sizeSummary: launchBreakdownEntries(item.sizes, 8),
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
   return {
     revenue: byProduct.reduce((sum, item) => sum + item.revenue, 0),
     items: byProduct.reduce((sum, item) => sum + item.items, 0),
     byProduct,
+    byVariant: [...byVariant.values()].sort((a, b) => b.revenue - a.revenue),
+    byColor: launchBreakdownEntries(byColor, 8),
+    bySize: launchBreakdownEntries(bySize, 12),
   };
 }
 
@@ -3101,6 +3493,38 @@ function priorityScore(priority) {
 
 function normalizeComparableText(value = "") {
   return slug(String(value)).replace(/-/g, " ").trim();
+}
+
+function cleanLaunchText(value = "") {
+  return String(value || "").trim();
+}
+
+function normalizeDateKey(value = "") {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const brMatch = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (brMatch) {
+    const [, day, month, year] = brMatch;
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  }
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+}
+
+function parseLaunchNumber(value) {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return value;
+  const text = String(value)
+    .replace(/[R$\s]/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+  const number = Number(text);
+  return Number.isFinite(number) ? number : 0;
 }
 
 function loadManualEventsFromStorage() {

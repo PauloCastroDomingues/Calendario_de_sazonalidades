@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.9 - 2026-07-03
+
+- Alterada a aba `Analise de lancamentos` para selecionar modelos, mantendo cor, tamanho e SKU como dimensoes internas da analise.
+- Adicionados breakdowns visuais de top cores e tamanhos por modelo, alem de tabela detalhada por variacao.
+- Preparado suporte opcional aos JSONs `lancamentos_modelos.json` e `lancamentos_investimentos.json`.
+- Atualizado o Apps Script para criar/exportar as abas `lancamentos_modelos` e `lancamentos_investimentos` a partir do Google Sheets.
+- Atualizado cache bust dos assets para `v=0.5.9`.
+
 ## 0.5.8 - 2026-07-03
 
 - Polida a aba `Analise de lancamentos` com seletor visual de produtos, busca, contador e selecao rapida de Top 3.
