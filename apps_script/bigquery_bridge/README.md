@@ -129,41 +129,29 @@ Com isso, o navegador continua chamando `/api/events`; o backend chama o Apps Sc
 Para a aba `Analise de lancamentos`, o dashboard pode usar duas abas adicionais na mesma Google Sheet dos eventos:
 
 1. Rode `instalarBaseLancamentos` no Apps Script.
-2. Preencha a aba `lancamentos_modelos` com os modelos e suas datas oficiais de lancamento.
-3. Preencha a aba `lancamentos_investimentos` com investimento, receita e pedidos planejados/reais por modelo.
+2. Preencha a aba `lancamentos_modelos` com o nome do modelo e a data oficial de lancamento.
+3. Preencha a aba `lancamentos_investimentos` com o mesmo nome do modelo, a data de lancamento e os valores de investimento/receita.
 4. Rode `exportarLancamentos` para atualizar apenas os JSONs dessas abas.
 5. Rode `atualizarDadosD1` para atualizar BigQuery D-1, eventos e lancamentos no mesmo commit.
 
 Colunas de `lancamentos_modelos`:
 
 ```text
-modelo_id
 modelo
-linha
 data_lancamento
-termos_busca
-sku_prefixos
-status
 observacao
 ```
 
 Colunas de `lancamentos_investimentos`:
 
 ```text
-modelo_id
 modelo
-data_inicio
-data_fim
-janela
-canal
-investimento_planejado
-investimento_real
-receita_planejada
-receita_real
-pedidos_planejados
-pedidos_reais
-status
+data_lancamento
+investimento
+receita
+pedidos
 observacao
 ```
 
-Use o mesmo `modelo_id` nas duas abas. Exemplo: `rs8-avant`, `phantom-slip`, `rs6-gt`.
+Use exatamente o mesmo texto em `modelo` nas duas abas. Exemplo: `RS8 Avant`, `Phantom Slip`, `RS6 GT`.
+O dashboard usa esse nome para achar os produtos e depois quebra a analise por cor, tamanho e SKU.

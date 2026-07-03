@@ -631,7 +631,7 @@ function normalizeLaunchModelConfigList(rows = []) {
   return (Array.isArray(rows) ? rows : [])
     .filter((row) => String(row.status || "Ativo").toLowerCase() !== "excluido")
     .map((row) => {
-      const modelName = cleanLaunchText(row.modelo || row.model || row.nome_modelo || row.linha || "");
+      const modelName = cleanLaunchText(row.modelo || row.model || row.nome_modelo || row.nome || row.linha || "");
       const modelId = cleanLaunchText(row.modelo_id || row.model_id || modelName);
       const searchTerms = [
         modelName,
@@ -662,15 +662,17 @@ function normalizeLaunchInvestmentList(rows = []) {
   return (Array.isArray(rows) ? rows : [])
     .filter((row) => String(row.status || "Ativo").toLowerCase() !== "excluido")
     .map((row) => {
-      const modelName = cleanLaunchText(row.modelo || row.model || row.nome_modelo || "");
+      const modelName = cleanLaunchText(row.modelo || row.model || row.nome_modelo || row.nome || "");
       const modelId = cleanLaunchText(row.modelo_id || row.model_id || modelName);
+      const launchDate = normalizeDateKey(row.data_lancamento || row.launch_date || row.data);
       return {
         ...row,
         modelo_id: modelId,
         modelo: modelName,
         model_key: slug(modelId || modelName),
-        data_inicio: normalizeDateKey(row.data_inicio || row.start_date || row.data),
-        data_fim: normalizeDateKey(row.data_fim || row.end_date || row.data_inicio || row.data),
+        data_lancamento: launchDate,
+        data_inicio: normalizeDateKey(row.data_inicio || row.start_date || row.data || launchDate),
+        data_fim: normalizeDateKey(row.data_fim || row.end_date || row.data_inicio || row.data || launchDate),
         janela: cleanLaunchText(row.janela || row.window || ""),
         canal: cleanLaunchText(row.canal || row.channel || "Planejado"),
         investimento_planejado: parseLaunchNumber(row.investimento_planejado),

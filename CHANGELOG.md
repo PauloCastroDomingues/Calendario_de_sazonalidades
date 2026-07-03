@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.10 - 2026-07-03
+
+- Simplificadas as abas de lancamentos no Apps Script para preenchimento por nome do modelo e data de lancamento.
+- Ajustada a aba financeira de lancamentos para aceitar `modelo`, `data_lancamento`, `investimento`, `receita` e `pedidos`.
+- Mantido o detalhamento de cor, tamanho e SKU dentro da analise do dashboard a partir do nome do modelo.
+- Atualizado cache bust dos assets para `v=0.5.10`.
+
 ## 0.5.9 - 2026-07-03
 
 - Alterada a aba `Analise de lancamentos` para selecionar modelos, mantendo cor, tamanho e SKU como dimensoes internas da analise.

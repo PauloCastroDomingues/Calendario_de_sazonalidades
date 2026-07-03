@@ -30,29 +30,16 @@ const EVENTS_HEADER = [
   "deleted_at",
 ];
 const LAUNCH_MODELS_HEADER = [
-  "modelo_id",
   "modelo",
-  "linha",
   "data_lancamento",
-  "termos_busca",
-  "sku_prefixos",
-  "status",
   "observacao",
 ];
 const LAUNCH_INVESTMENTS_HEADER = [
-  "modelo_id",
   "modelo",
-  "data_inicio",
-  "data_fim",
-  "janela",
-  "canal",
-  "investimento_planejado",
-  "investimento_real",
-  "receita_planejada",
-  "receita_real",
-  "pedidos_planejados",
-  "pedidos_reais",
-  "status",
+  "data_lancamento",
+  "investimento",
+  "receita",
+  "pedidos",
   "observacao",
 ];
 
@@ -742,6 +729,10 @@ function getSheetWithHeader_(sheetName, header) {
 
 function ensureSheetHeader_(sheet, header) {
   sheet.getRange(1, 1, 1, header.length).setValues([header]);
+  const extraColumns = sheet.getMaxColumns() - header.length;
+  if (extraColumns > 0) {
+    sheet.getRange(1, header.length + 1, 1, extraColumns).clearContent();
+  }
   sheet.setFrozenRows(1);
 }
 
