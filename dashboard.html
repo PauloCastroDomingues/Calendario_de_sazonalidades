@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Calendário Comercial Reise</title>
-    <link rel="stylesheet" href="src/style.css?v=0.5.0" />
+    <link rel="stylesheet" href="src/style.css?v=0.5.7" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="src/app.js?v=0.5.0" defer></script>
+    <script src="src/app.js?v=0.5.7" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -33,6 +33,16 @@
     <main class="page-shell">
       <p id="dataStatus" class="data-status" role="status"></p>
 
+      <nav class="view-switcher" aria-label="Navegação principal do dashboard">
+        <button id="calendarViewTab" class="view-tab is-active" type="button" data-view-tab="calendar" aria-pressed="true">
+          Calendário comercial
+        </button>
+        <button id="launchViewTab" class="view-tab" type="button" data-view-tab="launches" aria-pressed="false">
+          Análise de lançamentos
+        </button>
+      </nav>
+
+      <div id="calendarWorkspace" class="workspace-view">
       <section class="main-grid">
         <div class="calendar-panel" aria-label="Calendário mensal">
           <div class="month-heading">
@@ -472,6 +482,95 @@
             </table>
           </div>
         </article>
+      </section>
+      </div>
+
+      <section id="launchWorkbench" class="workspace-view launch-workbench" aria-label="Análise de lançamentos" hidden>
+        <div class="section-heading launch-workbench-heading">
+          <div>
+            <span class="eyebrow">Lançamentos</span>
+            <h2>Curva e eficiência por produto</h2>
+            <p>Selecione um ou mais produtos, confirme a data de lançamento e acompanhe a curva D0-D90 com vendas, mídia, UTM, ticket e clientes.</p>
+          </div>
+          <span id="launchWorkbenchStatus" class="comparison-badge">Cache D-1</span>
+        </div>
+
+        <div class="launch-control-panel">
+          <label>
+            Evento de lançamento
+            <select id="launchEventSelect"></select>
+          </label>
+          <label>
+            Data de lançamento
+            <input id="launchDateInput" type="date" />
+          </label>
+          <label>
+            Janela
+            <select id="launchWindowSelect">
+              <option value="15">D0 a D+14</option>
+              <option value="30">D0 a D+29</option>
+              <option value="90" selected>D0 a D+89</option>
+            </select>
+          </label>
+          <label class="launch-product-picker">
+            Produtos analisados
+            <select id="launchProductSelect" multiple size="7"></select>
+          </label>
+        </div>
+
+        <div id="launchInsight" class="launch-insight"></div>
+
+        <div id="launchMetricGrid" class="launch-metric-grid"></div>
+
+        <section class="launch-chart-grid" aria-label="Curvas de lançamento">
+          <article class="chart-card launch-chart-card">
+            <h3>Faturamento acumulado</h3>
+            <canvas id="launchCurveChart" height="220"></canvas>
+          </article>
+          <article class="chart-card launch-chart-card">
+            <h3>Pedidos e itens por dia</h3>
+            <canvas id="launchDailyChart" height="220"></canvas>
+          </article>
+        </section>
+
+        <section class="launch-detail-grid" aria-label="Detalhes da análise de lançamento">
+          <article class="launch-detail-panel">
+            <div class="section-heading">
+              <span class="eyebrow">Janelas</span>
+              <h2>D0, D+7, D+15, D+30 e D+90</h2>
+            </div>
+            <div id="launchWindowCards" class="launch-window-grid"></div>
+          </article>
+
+          <article class="launch-detail-panel">
+            <div class="section-heading">
+              <span class="eyebrow">Produto</span>
+              <h2>Mix selecionado</h2>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th class="numeric-cell">Receita</th>
+                    <th class="numeric-cell">Itens</th>
+                    <th class="numeric-cell">Ticket/item</th>
+                    <th>Estoque</th>
+                  </tr>
+                </thead>
+                <tbody id="launchProductTable"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="launch-detail-panel launch-media-panel">
+            <div class="section-heading">
+              <span class="eyebrow">Aquisição</span>
+              <h2>Mídia, CRM e UTM</h2>
+            </div>
+            <div id="launchMediaGrid" class="launch-media-grid"></div>
+          </article>
+        </section>
       </section>
     </main>
   </body>

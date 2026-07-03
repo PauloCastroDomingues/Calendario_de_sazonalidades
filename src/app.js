@@ -117,11 +117,19 @@ const state = {
   deletingManualEventId: null,
   loadedAt: null,
   lastEventApiError: "",
+  activeView: "calendar",
+  launch: {
+    eventId: "",
+    productKeys: [],
+    launchDate: "",
+    windowDays: 90,
+  },
 };
 
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  state.activeView = resolveInitialView();
   bindControls();
   await loadData();
   buildIndexes();
@@ -131,7 +139,16 @@ async function init() {
   renderDashboard();
 }
 
+function resolveInitialView() {
+  return window.location.hash === "#lancamentos" || window.location.hash === "#launches"
+    ? "launches"
+    : "calendar";
+}
+
 function bindControls() {
+  document.querySelectorAll("[data-view-tab]").forEach((button) => {
+    button.addEventListener("click", () => switchView(button.dataset.viewTab));
+  });
   document.getElementById("prevMonthButton").addEventListener("click", () => shiftMonth(-1));
   document.getElementById("nextMonthButton").addEventListener("click", () => shiftMonth(1));
   document.getElementById("todayButton").addEventListener("click", goToToday);
@@ -199,6 +216,14 @@ function bindControls() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeMenus();
   });
+  window.addEventListener("hashchange", () => {
+    state.activeView = resolveInitialView();
+    updateActiveView();
+    if (state.activeView === "launches") {
+      populateLaunchControls();
+      renderLaunchWorkbench();
+    }
+  });
 
   document.addEventListener("mouseup", () => {
     if (!state.isDragging) return;
@@ -241,6 +266,45 @@ function bindControls() {
   document.getElementById("exportManualEventsButton").addEventListener("click", exportManualEvents);
   document.getElementById("importManualEventsInput").addEventListener("change", importManualEvents);
   document.getElementById("manualEventsList").addEventListener("click", handleManualEventsListClick);
+  document.getElementById("launchEventSelect").addEventListener("change", handleLaunchEventChange);
+  document.getElementById("launchDateInput").addEventListener("change", (event) => {
+    state.launch.launchDate = event.target.value;
+    renderLaunchWorkbench();
+  });
+  document.getElementById("launchWindowSelect").addEventListener("change", (event) => {
+    state.launch.windowDays = Number(event.target.value || 90);
+    renderLaunchWorkbench();
+  });
+  document.getElementById("launchProductSelect").addEventListener("change", (event) => {
+    state.launch.productKeys = [...event.target.selectedOptions].map((option) => option.value);
+    renderLaunchWorkbench();
+  });
+}
+
+function switchView(view) {
+  state.activeView = view === "launches" ? "launches" : "calendar";
+  if (window.location.hash !== (state.activeView === "launches" ? "#lancamentos" : "")) {
+    history.replaceState(null, "", state.activeView === "launches" ? "#lancamentos" : window.location.pathname + window.location.search);
+  }
+  updateActiveView();
+  if (state.activeView === "launches") {
+    populateLaunchControls();
+    renderLaunchWorkbench();
+  }
+}
+
+function updateActiveView() {
+  const isLaunches = state.activeView === "launches";
+  const calendar = document.getElementById("calendarWorkspace");
+  const launches = document.getElementById("launchWorkbench");
+  if (calendar) calendar.hidden = isLaunches;
+  if (launches) launches.hidden = !isLaunches;
+
+  document.querySelectorAll("[data-view-tab]").forEach((button) => {
+    const active = button.dataset.viewTab === state.activeView;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
 }
 
 function resolveApiBase() {
@@ -686,8 +750,10 @@ function renderDashboard() {
   document.getElementById("freePeriodEnd").value = state.freePeriodEnd;
   document.getElementById("freeCompareStart").value = state.freeCompareStart;
   document.getElementById("freeCompareEnd").value = state.freeCompareEnd;
+  updateActiveView();
   updateControlVisibility();
   updateComparisonStateClass();
+  populateLaunchControls();
   renderCalendar();
   renderSummary();
   renderSummaryFluctuation();
@@ -696,6 +762,7 @@ function renderDashboard() {
   renderTables();
   renderSelectedDetail();
   renderManualEventsList();
+  if (state.activeView === "launches") renderLaunchWorkbench();
 }
 
 function updateComparisonStateClass() {
@@ -1196,6 +1263,465 @@ function renderLaunchCard(item = {}) {
       <footer>${escapeHtml(item.next_action || "")}</footer>
     </article>
   `;
+}
+
+function handleLaunchEventChange(event) {
+  state.launch.eventId = event.target.value;
+  const launchEvent = collectLaunchEvents().find((item) => item.id === state.launch.eventId);
+  if (launchEvent) {
+    state.launch.launchDate = launchEvent.data_inicio || launchEvent.data || state.launch.launchDate;
+    const matchedKeys = matchProductKeysForLaunchEvent(launchEvent, collectLaunchProducts());
+    if (matchedKeys.length) state.launch.productKeys = matchedKeys;
+  }
+  populateLaunchControls();
+  renderLaunchWorkbench();
+}
+
+function populateLaunchControls() {
+  const eventSelect = document.getElementById("launchEventSelect");
+  const productSelect = document.getElementById("launchProductSelect");
+  const dateInput = document.getElementById("launchDateInput");
+  const windowSelect = document.getElementById("launchWindowSelect");
+  if (!eventSelect || !productSelect || !dateInput || !windowSelect) return;
+
+  const events = collectLaunchEvents();
+  const products = collectLaunchProducts();
+
+  if (!state.launch.eventId && events.length) {
+    state.launch.eventId = events[0].id;
+    state.launch.launchDate = events[0].data_inicio || events[0].data || state.launch.launchDate;
+    state.launch.productKeys = matchProductKeysForLaunchEvent(events[0], products);
+  }
+  if (!state.launch.productKeys.length && products.length) state.launch.productKeys = [products[0].key];
+  if (!state.launch.launchDate) {
+    const selectedProduct = products.find((product) => state.launch.productKeys.includes(product.key));
+    state.launch.launchDate = selectedProduct?.firstDate || getDataCutoffKey() || currentDateKey();
+  }
+
+  eventSelect.innerHTML = [
+    `<option value="">Sem evento vinculado</option>`,
+    ...events.map(
+      (item) =>
+        `<option value="${escapeHtml(item.id)}">${escapeHtml(item.titulo || item.nome_evento || "Lançamento")} · ${formatShortDate(item.data_inicio || item.data)}</option>`
+    ),
+  ].join("");
+  eventSelect.value = state.launch.eventId || "";
+
+  productSelect.innerHTML = products
+    .map(
+      (item) =>
+        `<option value="${escapeHtml(item.key)}">${escapeHtml(item.name)}${item.sku ? ` · ${escapeHtml(item.sku)}` : ""} · ${formatCompactCurrency(item.revenue)}</option>`
+    )
+    .join("");
+  [...productSelect.options].forEach((option) => {
+    option.selected = state.launch.productKeys.includes(option.value);
+  });
+
+  dateInput.value = state.launch.launchDate || "";
+  windowSelect.value = String(state.launch.windowDays || 90);
+}
+
+function renderLaunchWorkbench() {
+  const root = document.getElementById("launchWorkbench");
+  if (!root || root.hidden) return;
+  const analysis = buildLaunchWorkbenchAnalysis();
+  renderLaunchInsight(analysis);
+  renderLaunchMetricGrid(analysis);
+  renderLaunchCurves(analysis);
+  renderLaunchWindowCards(analysis);
+  renderLaunchProductTable(analysis);
+  renderLaunchMediaGrid(analysis);
+}
+
+function buildLaunchWorkbenchAnalysis() {
+  const products = collectLaunchProducts();
+  const selectedProducts = products.filter((product) => state.launch.productKeys.includes(product.key));
+  const productKeys = selectedProducts.map((product) => product.key);
+  const launchEvent = collectLaunchEvents().find((event) => event.id === state.launch.eventId) || null;
+  const launchDate = state.launch.launchDate || launchEvent?.data_inicio || selectedProducts[0]?.firstDate || getDataCutoffKey() || currentDateKey();
+  const windowDays = Number(state.launch.windowDays || 90);
+  const cutoff = getDataCutoffKey();
+  const plannedEnd = addDays(launchDate, windowDays - 1);
+  const actualEnd = cutoff && cutoff < plannedEnd ? cutoff : plannedEnd;
+  const hasActuals = Boolean(launchDate && actualEnd && actualEnd >= launchDate);
+  const actualKeys = hasActuals ? dateKeysBetween(launchDate, actualEnd) : [];
+  const baselineKeys = actualKeys.length ? dateKeysBetween(addDays(launchDate, -actualKeys.length), addDays(launchDate, -1)) : [];
+  const productRows = filterProductRowsByKeys(actualKeys, productKeys);
+  const baselineProductRows = filterProductRowsByKeys(baselineKeys, productKeys);
+  const productSummary = summarizeLaunchWorkbenchProducts(productRows, selectedProducts);
+  const baselineProductSummary = summarizeLaunchWorkbenchProducts(baselineProductRows, selectedProducts);
+  const metrics = getMetricSummary(actualKeys);
+  const baselineMetrics = getMetricSummary(baselineKeys);
+  const media = summarizeLaunchWorkbenchMedia(actualKeys, launchEvent);
+  const windows = buildLaunchWorkbenchWindows(launchDate, cutoff, productKeys, launchEvent);
+  const curve = buildLaunchCurve(actualKeys, selectedProducts);
+
+  return {
+    launchEvent,
+    launchDate,
+    plannedEnd,
+    actualEnd,
+    cutoff,
+    windowDays,
+    hasActuals,
+    actualKeys,
+    baselineKeys,
+    selectedProducts,
+    productSummary,
+    baselineProductSummary,
+    metrics,
+    baselineMetrics,
+    media,
+    windows,
+    curve,
+    revenueVariation: calculateVariation(productSummary.revenue, baselineProductSummary.revenue),
+    contextRevenueVariation: calculateVariation(metrics.receita_total, baselineMetrics.receita_total),
+  };
+}
+
+function renderLaunchInsight(analysis) {
+  const target = document.getElementById("launchInsight");
+  const status = document.getElementById("launchWorkbenchStatus");
+  if (!target || !status) return;
+
+  status.textContent = analysis.cutoff ? `Dados até ${formatShortDate(analysis.cutoff)}` : "Sem corte D-1";
+  if (!analysis.selectedProducts.length) {
+    target.innerHTML = `
+      <strong>Selecione ao menos um produto para iniciar.</strong>
+      <span>A curva usa o cache D-1 ja exportado; trocar filtro nao consulta BigQuery.</span>
+    `;
+    return;
+  }
+
+  const eventName = analysis.launchEvent?.titulo || analysis.launchEvent?.nome_evento || "analise avulsa";
+  const productLabel =
+    analysis.selectedProducts.length === 1
+      ? analysis.selectedProducts[0].name
+      : `${analysis.selectedProducts.length} produtos selecionados`;
+  const productVariation =
+    analysis.revenueVariation.percentChange === null ? "sem baseline do produto" : analysis.revenueVariation.label;
+  const actualText = analysis.hasActuals
+    ? `${formatShortDate(analysis.launchDate)} a ${formatShortDate(analysis.actualEnd)}`
+    : `lancamento futuro em ${formatShortDate(analysis.launchDate)}`;
+
+  target.innerHTML = `
+    <strong>${escapeHtml(eventName)} · ${escapeHtml(productLabel)}</strong>
+    <span>Janela analisada: ${actualText}. Produto vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.</span>
+  `;
+}
+
+function renderLaunchMetricGrid(analysis) {
+  const target = document.getElementById("launchMetricGrid");
+  if (!target) return;
+
+  const productTicket = safeDivide(analysis.productSummary.revenue, analysis.productSummary.items);
+  const newShare = safeDivide(
+    analysis.metrics.clientes_novos,
+    analysis.metrics.clientes_novos + analysis.metrics.clientes_recorrentes
+  );
+  const cards = [
+    ["Receita produto", formatCurrency(analysis.productSummary.revenue), variationBadge(analysis.revenueVariation)],
+    ["Itens produto", formatInteger(analysis.productSummary.items), `${formatCurrency(productTicket)} por item`],
+    ["Faturamento geral", formatCurrency(analysis.metrics.receita_total), variationBadge(analysis.contextRevenueVariation)],
+    ["Pedidos", formatInteger(analysis.metrics.pedidos_aprovados), `Ticket ${formatCurrency(analysis.metrics.ticket_medio)}`],
+    ["Conversão", formatPercent(analysis.metrics.taxa_conversao), `${formatInteger(analysis.metrics.sessoes)} sessões`],
+    ["Clientes novos", formatPercent(newShare), `${formatInteger(analysis.metrics.clientes_novos)} clientes`],
+    ["Investimento", formatCurrency(analysis.media.investment), `${formatDecimal(analysis.media.ordersPer1k)} pedidos / R$1k`],
+    ["ROAS / CPA", `${formatRoas(analysis.media.roas)} · ${formatCurrency(analysis.media.cpa)}`, `${formatCurrency(analysis.media.attributedRevenue)} UTM`],
+  ];
+
+  target.innerHTML = cards
+    .map(
+      ([label, value, note]) => `
+        <article class="launch-metric-card">
+          <span>${label}</span>
+          <strong>${value}</strong>
+          <small>${note}</small>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderLaunchCurves(analysis) {
+  const labels = analysis.curve.labels;
+  const colors = ["#1e5a49", "#b98d43", "#2d5d83", "#8b6424", "#9b3e37", "#59615d"];
+  const revenueDatasets = analysis.curve.revenueSeries.map((series, index) => ({
+    label: series.label,
+    data: series.values,
+    color: colors[index % colors.length],
+    fill: index === 0 && analysis.curve.revenueSeries.length === 1,
+  }));
+
+  renderChart(
+    "launchCurveChart",
+    labels,
+    revenueDatasets.length ? revenueDatasets : [{ label: "Receita", data: [], color: "#1e5a49", fill: true }],
+    formatCurrency
+  );
+  renderChart(
+    "launchDailyChart",
+    labels,
+    [
+      { label: "Itens produto", data: analysis.curve.dailyItems, color: "#b98d43", fill: true },
+      { label: "Pedidos contexto", data: analysis.curve.dailyOrders, color: "#1e5a49", fill: false },
+    ],
+    formatInteger
+  );
+}
+
+function renderLaunchWindowCards(analysis) {
+  const target = document.getElementById("launchWindowCards");
+  if (!target) return;
+  target.innerHTML = analysis.windows
+    .map(
+      (window) => `
+        <article class="launch-window-card">
+          <span>${escapeHtml(window.label)}</span>
+          <strong>${formatCurrency(window.productRevenue)}</strong>
+          <small>${formatInteger(window.productItems)} itens · ${formatInteger(window.orders)} pedidos · ${formatRoas(window.roas)}</small>
+        </article>
+      `
+    )
+    .join("");
+}
+
+function renderLaunchProductTable(analysis) {
+  const body = document.getElementById("launchProductTable");
+  if (!body) return;
+  body.innerHTML =
+    analysis.productSummary.byProduct
+      .map((item) => {
+        const stock = state.indexes.estoque[item.sku] || {};
+        return `
+          <tr>
+            <td><strong>${escapeHtml(item.name)}</strong><br><span>${escapeHtml(item.sku || item.key)}</span></td>
+            <td class="numeric-cell">${formatCurrency(item.revenue)}</td>
+            <td class="numeric-cell">${formatInteger(item.items)}</td>
+            <td class="numeric-cell">${formatCurrency(safeDivide(item.revenue, item.items))}</td>
+            <td>${stock.risk_status ? `<span class="status-chip ${isStockRisky(stock.risk_status) ? "warning" : "success"}">${escapeHtml(stock.risk_status)}</span>` : "-"}</td>
+          </tr>
+        `;
+      })
+      .join("") || emptyTableRow(5);
+}
+
+function renderLaunchMediaGrid(analysis) {
+  const target = document.getElementById("launchMediaGrid");
+  if (!target) return;
+  const media = analysis.media;
+  const items = [
+    ["Investimento", formatCurrency(media.investment), `${formatInteger(media.campaigns)} campanha(s)`],
+    ["Receita UTM", formatCurrency(media.attributedRevenue), `${formatInteger(media.attributedOrders)} pedido(s)`],
+    ["ROAS", formatRoas(media.roas), `CPA ${formatCurrency(media.cpa)}`],
+    ["Cliques", formatInteger(media.clicks), `CPC ${formatCurrency(media.cpc)}`],
+    ["CTR", formatPercent(media.ctr), `${formatInteger(media.impressions)} impressões`],
+    ["Pedidos / R$1k", formatDecimal(media.ordersPer1k), media.filtered ? "campanha vinculada" : "janela completa"],
+  ];
+  target.innerHTML = items
+    .map(
+      ([label, value, note]) => `
+        <div class="launch-media-item">
+          <span>${label}</span>
+          <strong>${value}</strong>
+          <small>${note}</small>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function collectLaunchEvents() {
+  return normalizeManualEventsList(state.data.eventosManuais || [])
+    .filter(isLaunchManualEvent)
+    .sort((a, b) => String(a.data_inicio || a.data || "").localeCompare(String(b.data_inicio || b.data || "")));
+}
+
+function isLaunchManualEvent(event = {}) {
+  const text = normalizeComparableText(
+    [event.tipo, event.tipo_evento, event.categoria, event.titulo, event.nome_evento, event.observacao].join(" ")
+  );
+  const compact = text.replace(/\s+/g, "");
+  return compact.includes("lancamento") || text.includes("launch");
+}
+
+function collectLaunchProducts() {
+  const map = new Map();
+  (state.data.produtos || []).forEach((row) => {
+    const key = productComparisonKey(row);
+    if (!key) return;
+    const current = map.get(key) || {
+      key,
+      sku: row.sku || "",
+      productKey: row.product_key || "",
+      name: row.product_name || row.product_key || row.sku || key,
+      firstDate: row.data || "",
+      lastDate: row.data || "",
+      revenue: 0,
+      items: 0,
+    };
+    current.sku = current.sku || row.sku || "";
+    current.productKey = current.productKey || row.product_key || "";
+    current.name = current.name || row.product_name || key;
+    current.firstDate = !current.firstDate || row.data < current.firstDate ? row.data : current.firstDate;
+    current.lastDate = !current.lastDate || row.data > current.lastDate ? row.data : current.lastDate;
+    current.revenue += Number(row.receita_produto || 0);
+    current.items += Number(row.itens_vendidos || 0);
+    map.set(key, current);
+  });
+  return [...map.values()].sort((a, b) => b.revenue - a.revenue);
+}
+
+function matchProductKeysForLaunchEvent(event, products) {
+  const terms = splitLaunchTerms(event.produto_relacionado || event.titulo || event.nome_evento || "");
+  if (!terms.length) return [];
+  return products
+    .filter((product) => {
+      const text = normalizeComparableText(`${product.name} ${product.sku} ${product.productKey} ${product.key}`);
+      return terms.some((term) => text.includes(term));
+    })
+    .map((product) => product.key)
+    .slice(0, 8);
+}
+
+function splitLaunchTerms(value = "") {
+  return String(value)
+    .split(/[,;|/]+/)
+    .map((item) => normalizeComparableText(item))
+    .filter(Boolean);
+}
+
+function filterProductRowsByKeys(dateKeys, productKeys) {
+  const keySet = new Set(productKeys);
+  if (!dateKeys.length || !keySet.size) return [];
+  return dateKeys
+    .flatMap((dateKey) => state.indexes.produtos[dateKey] || [])
+    .filter((row) => keySet.has(productComparisonKey(row)));
+}
+
+function summarizeLaunchWorkbenchProducts(rows, selectedProducts) {
+  const byKey = new Map(
+    selectedProducts.map((product) => [
+      product.key,
+      { key: product.key, sku: product.sku, name: product.name, revenue: 0, items: 0 },
+    ])
+  );
+  rows.forEach((row) => {
+    const key = productComparisonKey(row);
+    const current = byKey.get(key) || {
+      key,
+      sku: row.sku || "",
+      name: row.product_name || key,
+      revenue: 0,
+      items: 0,
+    };
+    current.sku = current.sku || row.sku || "";
+    current.name = current.name || row.product_name || key;
+    current.revenue += Number(row.receita_produto || 0);
+    current.items += Number(row.itens_vendidos || 0);
+    byKey.set(key, current);
+  });
+  const byProduct = [...byKey.values()].sort((a, b) => b.revenue - a.revenue);
+  return {
+    revenue: byProduct.reduce((sum, item) => sum + item.revenue, 0),
+    items: byProduct.reduce((sum, item) => sum + item.items, 0),
+    byProduct,
+  };
+}
+
+function summarizeLaunchWorkbenchMedia(dateKeys, event) {
+  const terms = splitLaunchTerms(event?.campanha_relacionada || "");
+  const campaignRows = dateKeys.flatMap((dateKey) => state.indexes.campanhas[dateKey] || []);
+  const utmRows = dateKeys.flatMap((dateKey) => state.indexes.utms[dateKey] || []);
+  const filteredCampaignRows = terms.length
+    ? campaignRows.filter((row) => matchesLaunchTerm(row, terms, ["campaign_id", "campaign_name", "platform"]))
+    : campaignRows;
+  const filteredUtmRows = terms.length
+    ? utmRows.filter((row) => matchesLaunchTerm(row, terms, ["utm_source", "utm_medium", "utm_campaign", "channel"]))
+    : utmRows;
+  const investment = filteredCampaignRows.reduce((sum, row) => sum + Number(row.investimento || 0), 0);
+  const impressions = filteredCampaignRows.reduce((sum, row) => sum + Number(row.impressoes || 0), 0);
+  const clicks = filteredCampaignRows.reduce((sum, row) => sum + Number(row.cliques || 0), 0);
+  const attributedRevenue = filteredUtmRows.reduce((sum, row) => sum + Number(row.receita || 0), 0);
+  const attributedOrders = filteredUtmRows.reduce((sum, row) => sum + Number(row.pedidos || 0), 0);
+  return {
+    filtered: Boolean(terms.length),
+    campaigns: new Set(filteredCampaignRows.map((row) => row.campaign_id || row.campaign_name)).size,
+    utms: new Set(filteredUtmRows.map((row) => row.utm_campaign || row.channel)).size,
+    investment,
+    impressions,
+    clicks,
+    attributedRevenue,
+    attributedOrders,
+    ctr: safeDivide(clicks, impressions),
+    cpc: safeDivide(investment, clicks),
+    roas: safeDivide(attributedRevenue, investment),
+    cpa: safeDivide(investment, attributedOrders),
+    ordersPer1k: safeDivide(attributedOrders, investment / 1000),
+  };
+}
+
+function matchesLaunchTerm(row, terms, fields) {
+  const text = normalizeComparableText(fields.map((field) => row[field] || "").join(" "));
+  return terms.some((term) => text.includes(term));
+}
+
+function buildLaunchWorkbenchWindows(launchDate, cutoff, productKeys, event) {
+  return [1, 7, 15, 30, 90].map((days) => {
+    const end = addDays(launchDate, days - 1);
+    const actualEnd = cutoff && cutoff < end ? cutoff : end;
+    const keys = actualEnd >= launchDate ? dateKeysBetween(launchDate, actualEnd) : [];
+    const products = summarizeLaunchWorkbenchProducts(filterProductRowsByKeys(keys, productKeys), []);
+    const metrics = getMetricSummary(keys);
+    const media = summarizeLaunchWorkbenchMedia(keys, event);
+    return {
+      label: days === 1 ? "D0" : `D+${days - 1}`,
+      productRevenue: products.revenue,
+      productItems: products.items,
+      orders: metrics.pedidos_aprovados,
+      roas: media.roas,
+    };
+  });
+}
+
+function buildLaunchCurve(dateKeys, selectedProducts) {
+  const productKeys = selectedProducts.map((product) => product.key);
+  const labels = dateKeys.map((dateKey, index) => `D+${index}`);
+  const dailyItems = dateKeys.map((dateKey) =>
+    filterProductRowsByKeys([dateKey], productKeys).reduce((sum, row) => sum + Number(row.itens_vendidos || 0), 0)
+  );
+  const dailyOrders = dateKeys.map((dateKey) => getKpi(dateKey).pedidos_aprovados);
+  const revenueSeries = selectedProducts.slice(0, 6).map((product) => {
+    let cumulative = 0;
+    return {
+      label: product.name,
+      values: dateKeys.map((dateKey) => {
+        const dayRevenue = filterProductRowsByKeys([dateKey], [product.key]).reduce(
+          (sum, row) => sum + Number(row.receita_produto || 0),
+          0
+        );
+        cumulative += dayRevenue;
+        return cumulative;
+      }),
+    };
+  });
+  return { labels, dailyItems, dailyOrders, revenueSeries };
+}
+
+function getDataCutoffKey() {
+  const analyticsCutoff = state.data.analytics?.data_cutoff || state.data.dataQuality?.data_cutoff;
+  if (analyticsCutoff) return analyticsCutoff;
+  return (state.data.kpis || [])
+    .map((row) => row.data)
+    .filter(Boolean)
+    .sort()
+    .pop();
+}
+
+function safeDivide(numerator, denominator) {
+  const den = Number(denominator || 0);
+  if (!den) return 0;
+  return Number(numerator || 0) / den;
 }
 
 function renderReadinessPlaybookItems(items = []) {

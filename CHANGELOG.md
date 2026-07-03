@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.7 - 2026-07-03
+
+- Criada a aba `Analise de lancamentos` como uma bancada propria dentro do dashboard.
+- Adicionados seletores de evento, data de lancamento, janela D+ e multiplos produtos.
+- Incluidas curvas acumuladas, cards de KPI, janelas D0/D+7/D+15/D+30/D+90, mix de produto, estoque, midia, UTM, ROAS e CPA.
+- Atualizado cache bust dos assets para `v=0.5.7`.
+
 ## 0.5.6 - 2026-07-03
 
 - Mantido visivel o bloco de analise de lancamentos mesmo quando ainda nao ha lancamento cadastrado.
