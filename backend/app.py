@@ -33,9 +33,15 @@ refresh_service = RefreshService(settings, event_store)
 
 app = FastAPI(
     title="Calendário Comercial Reise API",
-    version="0.5.28",
+    version="0.5.30",
     description="Backend central para calendário, eventos manuais e cache de dados comerciais.",
 )
+
+DASHBOARD_NO_CACHE_HEADERS = {
+    "Cache-Control": "no-store, max-age=0, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
 
 app.add_middleware(
     CORSMiddleware,
@@ -74,12 +80,12 @@ async def shutdown() -> None:
 
 @app.get("/", include_in_schema=False)
 async def root() -> FileResponse:
-    return FileResponse(settings.project_root / "dashboard.html")
+    return FileResponse(settings.project_root / "dashboard.html", headers=DASHBOARD_NO_CACHE_HEADERS)
 
 
 @app.get("/dashboard.html", include_in_schema=False)
 async def dashboard() -> FileResponse:
-    return FileResponse(settings.project_root / "dashboard.html")
+    return FileResponse(settings.project_root / "dashboard.html", headers=DASHBOARD_NO_CACHE_HEADERS)
 
 
 @app.get("/api/status")

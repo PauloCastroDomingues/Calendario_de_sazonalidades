@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.30 - 2026-07-06
+
+- Corrigido cache do `dashboard.html` em `/` e `/dashboard.html` para evitar que o navegador continue carregando bundles antigos apos deploy.
+- Sincronizada a versao do backend, `pyproject.toml`, `VERSION` e cache bust dos assets para `v=0.5.30`.
+- Mantida a correcao da aba de lancamentos: renderizacao aguarda os dados carregarem e usa a paleta editorial fixa por modelo nos graficos.
+
 ## 0.5.28 - 2026-07-06
 
 - Corrigido o modo local da aba de lancamentos: localhost deixa de buscar automaticamente a API de producao e passa a usar os JSONs locais quando nao houver backend local.
