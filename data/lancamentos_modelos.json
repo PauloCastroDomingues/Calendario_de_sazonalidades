@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "modelo": "GT",
+    "data_lancamento": "2025-02-11",
+    "observacao": "lançamento oficial 18/out/2024. Primeira venda na base em 11/fev/2025 (gap de 116 dias). Causa: ausência de dados Shopify referentes ao período Shoppub pré-migração. Dia 0 usado = 11/fev/2025. (com base na primeira venda captada)"
+  },
+  {
+    "modelo": "Avant",
+    "data_lancamento": "2025-10-02",
+    "observacao": "lançamento oficial captato no ssot"
+  },
+  {
+    "modelo": "Phantom",
+    "data_lancamento": "2026-04-16",
+    "observacao": "lançamento oficial captato no ssot"
+  },
+  {
+    "modelo": "monochrome",
+    "data_lancamento": "2026-06-25",
+    "observacao": "lançamento oficial captato no ssot"
+  }
+]
