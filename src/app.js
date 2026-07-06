@@ -84,24 +84,22 @@ const LAUNCH_CHART_CANVAS_IDS = new Set([
   "launchMixChart",
   "launchWeeklyRevenueChart",
 ]);
-const LAUNCH_MODEL_COLOR_MAP = {
-  gt: "#B8923A",
-  avant: "#3D5220",
-  phantom: "#B14422",
-  monochrome: "#876A2C",
+const LAUNCH_PALETTE = {
+  gt: { line: "#b98d43", fill: "rgba(185, 141, 67, 0.08)" },
+  gtcollection: { line: "#b98d43", fill: "rgba(185, 141, 67, 0.08)" },
+  avant: { line: "#1e5a49", fill: "rgba(30, 90, 73, 0.08)" },
+  phantom: { line: "#a3483f", fill: "rgba(163, 72, 63, 0.08)" },
+  monochrome: { line: "#16463a", fill: "rgba(22, 70, 58, 0.08)" },
 };
 const LAUNCH_MODEL_COLOR_PALETTE = [
-  "#B8923A",
-  "#3D5220",
-  "#B14422",
-  "#8B6E2A",
-  "#627A31",
-  "#C45B32",
-  "#D1AE58",
-  "#2E421A",
-  "#7F3019",
+  "#16463a",
+  "#b98d43",
+  "#a3483f",
+  "#1e5a49",
+  "#12372f",
+  "#8b6424",
 ];
-const CHART_FALLBACK_COLORS = ["#3D5220", "#B8923A", "#B14422", "#876A2C", "#627A31", "#7F3019"];
+const CHART_FALLBACK_COLORS = ["#1e5a49", "#b98d43", "#a3483f", "#16463a", "#12372f", "#8b6424"];
 
 const LAUNCH_MODEL_ALIAS_TERMS = {
   monochrome: [
@@ -261,6 +259,7 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   state.activeView = resolveInitialView();
   bindControls();
+  configureChartDefaults();
   await loadData();
   buildIndexes();
   populateSelectors();
@@ -621,7 +620,7 @@ async function loadData() {
   );
 
   state.data = normalizeCalendarPayload(Object.fromEntries(entries));
-  state.loadedAt = null;
+  state.loadedAt = state.data.manifest?.generated_at || new Date().toISOString();
   state.deletedManualEventIds = loadDeletedManualEventIds();
   state.data.eventosManuais = normalizeManualEventsList(
     mergeManualEvents(state.data.eventosManuais || [], loadManualEventsFromStorage()).filter(
@@ -1662,6 +1661,13 @@ function closeLaunchItemsDrawer() {
 function renderLaunchWorkbench() {
   const root = document.getElementById("launchWorkbench");
   if (!root || root.hidden) return;
+  if (!state.loadedAt) {
+    document.getElementById("launchInsight").innerHTML = `
+      <strong>Carregando dados de lancamento.</strong>
+      <span>A analise aparece assim que a API ou os JSONs locais terminarem de carregar.</span>
+    `;
+    return;
+  }
   const analysis = buildLaunchWorkbenchAnalysis();
   renderLaunchInsight(analysis);
   renderLaunchMethodology(analysis);
@@ -2570,7 +2576,7 @@ function renderLaunchCurves(analysis) {
     label: series.label,
     data: series.values,
     color: launchChartColorForModel(series.label, analysis.curve.revenueSeries.map((item) => item.label)),
-    fill: index === 0 && analysis.curve.revenueSeries.length === 1,
+    fill: true,
   }));
   if (note) {
     note.textContent = analysis.curve.sourceGap
@@ -2588,8 +2594,8 @@ function renderLaunchCurves(analysis) {
     "launchDailyChart",
     labels,
     [
-      { label: "Itens modelo", data: analysis.curve.dailyItems, color: "#B8923A", fill: true },
-      { label: "Pedidos contexto", data: analysis.curve.dailyOrders, color: "#3D5220", fill: false },
+      { label: "Itens modelo", data: analysis.curve.dailyItems, color: "#b98d43", fill: false },
+      { label: "Pedidos contexto", data: analysis.curve.dailyOrders, color: "#1e5a49", fill: false },
     ],
     formatInteger
   );
@@ -3657,16 +3663,22 @@ function buildLaunchWeeklyCurveSeries(productWindows, selectedProducts, sourceGa
 }
 
 function launchChartColorForModel(modelName, modelNames = []) {
+  return getLaunchColor(modelName, modelNames).line;
+}
+
+function getLaunchColor(modelName, modelNames = []) {
   const key = modelColorKey(modelName);
-  if (LAUNCH_MODEL_COLOR_MAP[key]) return LAUNCH_MODEL_COLOR_MAP[key];
+  if (LAUNCH_PALETTE[key]) return LAUNCH_PALETTE[key];
 
   const sheetKeys = (state.data.lancamentosModelos || []).map((model) => modelColorKey(model.modelo));
   const sortedKeys = [...new Set(sheetKeys.length ? sheetKeys : modelNames.map(modelColorKey).filter(Boolean))]
-    .filter((item) => !LAUNCH_MODEL_COLOR_MAP[item])
+    .filter((item) => !LAUNCH_PALETTE[item])
     .sort((a, b) => a.localeCompare(b, "pt-BR"));
   const index = sortedKeys.indexOf(key);
-  if (index < 0) return LAUNCH_MODEL_COLOR_PALETTE[stableStringIndex(key, LAUNCH_MODEL_COLOR_PALETTE.length)];
-  return LAUNCH_MODEL_COLOR_PALETTE[index % LAUNCH_MODEL_COLOR_PALETTE.length];
+  const paletteIndex =
+    index < 0 ? stableStringIndex(key, LAUNCH_MODEL_COLOR_PALETTE.length) : index % LAUNCH_MODEL_COLOR_PALETTE.length;
+  const line = LAUNCH_MODEL_COLOR_PALETTE[paletteIndex];
+  return { line, fill: colorWithAlpha(line, paletteIndex === 1 ? 0.06 : 0.08) };
 }
 
 function modelColorKey(value = "") {
@@ -3912,6 +3924,7 @@ function renderChart(canvasId, labels, datasets, formatter) {
 
   const chartDatasets = normalizeChartDatasets(canvasId, datasets);
   const tickFormatter = formatter === formatCurrency ? formatChartCompactCurrency : formatter;
+  const isCurrencyChart = formatter === formatCurrency;
 
   state.charts[canvasId] = new Chart(canvas, {
     type: "line",
@@ -3921,7 +3934,7 @@ function renderChart(canvasId, labels, datasets, formatter) {
         label: dataset.label,
         data: dataset.data,
         borderColor: dataset.color,
-        backgroundColor: dataset.fill ? colorWithAlpha(dataset.color, 0.08) : "rgba(255, 255, 255, 0)",
+        backgroundColor: dataset.fill ? dataset.fillColor || colorWithAlpha(dataset.color, 0.08) : "rgba(255, 255, 255, 0)",
         borderWidth: 2,
         pointRadius: 2,
         pointHoverRadius: 5,
@@ -3950,17 +3963,20 @@ function renderChart(canvasId, labels, datasets, formatter) {
           },
         },
         tooltip: {
-          backgroundColor: "rgba(18, 24, 22, 0.94)",
+          backgroundColor: "#12372f",
           borderWidth: 0,
           cornerRadius: 6,
           displayColors: true,
           padding: 10,
           titleColor: "#ffffff",
           titleFont: { family: CHART_FONT_FAMILY, size: 11, weight: "700" },
-          bodyColor: "#ffffff",
+          bodyColor: "rgba(255, 255, 255, 0.82)",
           bodyFont: { family: CHART_FONT_FAMILY, size: 11 },
           callbacks: {
-            label: (context) => `${context.dataset.label}: ${formatter(context.parsed.y)}`,
+            label: (context) =>
+              isCurrencyChart
+                ? ` ${context.dataset.label}: ${formatCurrency(context.parsed.y)}`
+                : ` ${context.dataset.label}: ${formatter(context.parsed.y)}`,
           },
         },
       },
@@ -3971,6 +3987,7 @@ function renderChart(canvasId, labels, datasets, formatter) {
           ticks: {
             color: CHART_TEXT_COLOR,
             font: { family: CHART_FONT_FAMILY, size: 11 },
+            padding: 6,
             maxRotation: 45,
             minRotation: 0,
           },
@@ -3982,6 +3999,7 @@ function renderChart(canvasId, labels, datasets, formatter) {
           ticks: {
             color: CHART_TEXT_COLOR,
             font: { family: CHART_FONT_FAMILY, size: 11 },
+            padding: 6,
             callback: (value) => tickFormatter(value),
           },
         },
@@ -3992,22 +4010,44 @@ function renderChart(canvasId, labels, datasets, formatter) {
 
 function configureChartDefaults() {
   if (!window.Chart) return;
+  Chart.defaults.plugins = Chart.defaults.plugins || {};
+  Chart.defaults.plugins.legend = Chart.defaults.plugins.legend || {};
+  Chart.defaults.plugins.legend.labels = Chart.defaults.plugins.legend.labels || {};
+  Chart.defaults.plugins.tooltip = Chart.defaults.plugins.tooltip || {};
+  Chart.defaults.scale = Chart.defaults.scale || {};
+  Chart.defaults.scale.grid = Chart.defaults.scale.grid || {};
+  Chart.defaults.scale.border = Chart.defaults.scale.border || {};
+  Chart.defaults.scale.ticks = Chart.defaults.scale.ticks || {};
   Chart.defaults.font.family = CHART_FONT_FAMILY;
   Chart.defaults.font.size = 11;
   Chart.defaults.color = CHART_TEXT_COLOR;
   Chart.defaults.borderColor = CHART_GRID_COLOR;
+  Chart.defaults.plugins.legend.align = "start";
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+  Chart.defaults.plugins.legend.labels.boxWidth = 8;
+  Chart.defaults.plugins.tooltip.backgroundColor = "#12372f";
+  Chart.defaults.plugins.tooltip.titleColor = "#ffffff";
+  Chart.defaults.plugins.tooltip.bodyColor = "rgba(255, 255, 255, 0.82)";
+  Chart.defaults.plugins.tooltip.cornerRadius = 6;
+  Chart.defaults.plugins.tooltip.padding = 10;
+  Chart.defaults.plugins.tooltip.borderWidth = 0;
+  Chart.defaults.scale.grid.color = "rgba(18, 55, 47, 0.06)";
+  Chart.defaults.scale.grid.drawTicks = false;
+  Chart.defaults.scale.border.display = false;
+  Chart.defaults.scale.ticks.padding = 6;
 }
 
 function normalizeChartDatasets(canvasId, datasets) {
   const modelNames = datasets.map((dataset) => dataset.model || dataset.label).filter(Boolean);
   return datasets.map((dataset, index) => {
     const label = dataset.label || `Serie ${index + 1}`;
-    const color = resolveChartDatasetColor(canvasId, dataset, index, modelNames);
+    const colorConfig = resolveChartDatasetColor(canvasId, dataset, index, modelNames);
     return {
       ...dataset,
       label,
       data: dataset.data || dataset.values || [],
-      color,
+      color: colorConfig.line,
+      fillColor: colorConfig.fill,
       fill: Boolean(dataset.fill),
     };
   });
@@ -4016,9 +4056,10 @@ function normalizeChartDatasets(canvasId, datasets) {
 function resolveChartDatasetColor(canvasId, dataset, index, modelNames) {
   const label = dataset.model || dataset.label || "";
   if (LAUNCH_CHART_CANVAS_IDS.has(canvasId) && isLaunchModelLabel(label)) {
-    return launchChartColorForModel(label, modelNames);
+    return getLaunchColor(label, modelNames);
   }
-  return dataset.color || CHART_FALLBACK_COLORS[index % CHART_FALLBACK_COLORS.length];
+  const line = dataset.color || CHART_FALLBACK_COLORS[index % CHART_FALLBACK_COLORS.length];
+  return { line, fill: colorWithAlpha(line, 0.08) };
 }
 
 function isLaunchModelLabel(label) {

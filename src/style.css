@@ -2457,11 +2457,23 @@ textarea {
 .launch-chart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .launch-chart-card {
-  min-height: 300px;
+  min-height: 280px;
+  padding: 18px;
+  background: #fbfcfb;
+  border-color: rgba(18, 55, 47, 0.1);
+}
+
+.launch-chart-card:first-child {
+  grid-column: 1 / -1;
+  min-height: 340px;
+}
+
+.launch-chart-card:first-child canvas {
+  max-height: 270px;
 }
 
 .launch-window-matrix-wrap table {
