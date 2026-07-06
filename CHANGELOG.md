@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.27 - 2026-07-06
+
+- Ajustado o comparativo de lancamentos para comparar somente modelos selecionados; referencias automaticas deixam de entrar como selecao escondida.
+- O botao de atalho passa a indicar `Comparar Top 3`, deixando claro quando a selecao multi-modelo sera montada.
+- Aplicada paleta editorial fixa por modelo nos graficos Chart.js, preservando o layout do painel anterior.
+- Padronizados fonte, tooltip, legenda e grade dos graficos sem alterar calculos, backend ou JSONs.
+- Atualizado cache bust dos assets para `v=0.5.27`.
+
 ## 0.5.26 - 2026-07-06
 
 - Implementada camada dinamica da aba de lancamentos baseada na spec: metodologia automatica, destaque 30d, tabela modelo x janela, curvas adicionais e projecao de cenarios.

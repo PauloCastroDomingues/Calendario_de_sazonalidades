@@ -76,7 +76,6 @@ const FLUCTUATION_METRICS = [
 const CHART_FONT_FAMILY = 'Inter, "Segoe UI", Arial, sans-serif';
 const CHART_TEXT_COLOR = "#59615d";
 const CHART_GRID_COLOR = "rgba(18, 55, 47, 0.07)";
-const CHART_AXIS_BORDER_COLOR = "rgba(18, 55, 47, 0.12)";
 const LAUNCH_CHART_CANVAS_IDS = new Set([
   "launchCurveChart",
   "launchDailyChart",
@@ -101,18 +100,8 @@ const LAUNCH_MODEL_COLOR_PALETTE = [
   "#D1AE58",
   "#2E421A",
   "#7F3019",
-  "#A48634",
-  "#506927",
-  "#D0784A",
 ];
-const CHART_FALLBACK_COLORS = [
-  "#3D5220",
-  "#B8923A",
-  "#B14422",
-  "#876A2C",
-  "#627A31",
-  "#7F3019",
-];
+const CHART_FALLBACK_COLORS = ["#3D5220", "#B8923A", "#B14422", "#876A2C", "#627A31", "#7F3019"];
 
 const LAUNCH_MODEL_PATTERNS = [
   { pattern: /\bmonochrome\b|\brs\s*8\s*monochrome\b|\brs8monochrome\b/, name: "Monochrome" },
@@ -1798,29 +1787,7 @@ function resolveLaunchWindowStart(product = {}, fallbackLaunchDate = "") {
 }
 
 function resolveLaunchComparisonProducts(products, selectedProducts) {
-  if (!selectedProducts.length) return [];
-  if (selectedProducts.length > 1) return selectedProducts;
-
-  const selected = selectedProducts[0];
-  const selectedKeys = new Set(selectedProducts.map((product) => product.key));
-  const configuredPeers = products.filter(
-    (product) => product.config && product.key !== selected.key && (product.topic || "Outros") === (selected.topic || "Outros")
-  );
-  const fallbackPeers = products.filter(
-    (product) => product.key !== selected.key && (product.topic || "Outros") === (selected.topic || "Outros")
-  );
-  const peerPool = configuredPeers.length ? configuredPeers : fallbackPeers;
-  const peers = peerPool
-    .sort((a, b) => {
-      const dateCompare = String(b.launchDate || b.firstDate || "").localeCompare(String(a.launchDate || a.firstDate || ""));
-      return dateCompare || b.revenue - a.revenue;
-    })
-    .slice(0, 5);
-
-  return [selected, ...peers].filter((product) => {
-    if (selectedKeys.has(product.key)) return true;
-    return Boolean(product.launchDate || product.revenue || product.items);
-  });
+  return selectedProducts.filter((product) => product.launchDate || product.revenue || product.items);
 }
 
 function buildLaunchComparisonRows(productWindows) {
@@ -2446,16 +2413,20 @@ function renderLaunchComparison(analysis) {
   }
 
   const rows = analysis.comparison || [];
-  const autoPeers = analysis.selectedProducts.length === 1 && rows.length > 1;
-  subtitle.textContent = autoPeers
-    ? "Comparando o modelo selecionado com outros modelos do mesmo tipo."
-    : "Comparando apenas os modelos selecionados.";
+  const hasRealComparison = analysis.selectedProducts.length > 1;
+  subtitle.textContent = hasRealComparison
+    ? `Comparando ${analysis.selectedProducts.length} modelos selecionados no mesmo eixo D+.`
+    : "Leitura individual: selecione mais modelos ou use Comparar Top 3.";
 
   grid.innerHTML =
-    rows
+    [
+      !hasRealComparison
+        ? `<p class="launch-comparison-help">Este bloco nao adiciona modelos automaticamente. Para comparar curvas de lancamento, selecione 2 ou mais modelos no dropdown ou clique em Comparar Top 3.</p>`
+        : "",
+      rows
       .slice(0, 6)
       .map((row, index) => {
-        const badge = row.isSelected ? "Selecionado" : "Referencia";
+        const badge = hasRealComparison ? "Comparado" : "Selecionado";
         const evidence = row.launchDateAdjusted
           ? `D0 SSOT ajustado a partir da primeira venda capturada`
           : row.sourceGap
@@ -2480,7 +2451,8 @@ function renderLaunchComparison(analysis) {
           </article>
         `;
       })
-      .join("") || `<p class="launch-intelligence-empty">Sem modelos comparaveis para esta selecao.</p>`;
+      .join(""),
+    ].join("") || `<p class="launch-intelligence-empty">Sem modelos comparaveis para esta selecao.</p>`;
 
   table.innerHTML =
     rows
@@ -3975,7 +3947,7 @@ function renderChart(canvasId, labels, datasets, formatter) {
       },
       scales: {
         x: {
-          border: { color: CHART_AXIS_BORDER_COLOR, display: false },
+          border: { display: false },
           grid: { display: false, drawBorder: false },
           ticks: {
             color: CHART_TEXT_COLOR,
@@ -3986,7 +3958,7 @@ function renderChart(canvasId, labels, datasets, formatter) {
         },
         y: {
           beginAtZero: true,
-          border: { color: CHART_AXIS_BORDER_COLOR, display: false },
+          border: { display: false },
           grid: { color: CHART_GRID_COLOR, drawBorder: false },
           ticks: {
             color: CHART_TEXT_COLOR,
