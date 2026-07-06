@@ -121,8 +121,11 @@ const LAUNCH_COLOR_CODES = {
   AW: "All White",
   B: "Branco",
   C: "Cinza",
+  CF: "Marrom",
+  CT: "Caqui",
   M: "Marrom",
   MAR: "Marrom",
+  MC: "Cinza",
   MR: "Marinho",
   O: "Oliva",
   OW: "Off White",
@@ -136,6 +139,7 @@ const LAUNCH_COLOR_WORDS = [
   "Azul Marinho",
   "Branco",
   "Camurca",
+  "Caqui",
   "Caramelo",
   "Cinza",
   "Marinho",
@@ -2184,13 +2188,19 @@ function parseLaunchVariant(row = {}) {
     .filter(Boolean);
   const skuSize = [...skuParts].reverse().find((part) => /^\d{2}$|^(PP|P|M|G|GG|XG|XXG)$/i.test(part));
   const skuColorCode = skuParts.find((part) => LAUNCH_COLOR_CODES[part]);
+  const variantColor = variantParts.find((part) => !isLaunchSizeLabel(part));
+  const variantSize = variantParts.find(isLaunchSizeLabel);
   const color =
-    variantParts[0] ||
+    variantColor ||
     (skuColorCode ? LAUNCH_COLOR_CODES[skuColorCode] : "") ||
     inferColorFromName(name) ||
     "Sem cor";
-  const size = variantParts[1] || skuSize || "Sem tamanho";
+  const size = variantSize || skuSize || "Sem tamanho";
   return { color, size };
+}
+
+function isLaunchSizeLabel(value = "") {
+  return /^\d{2}$|^(PP|P|M|G|GG|XG|XXG)$/i.test(cleanLaunchText(value));
 }
 
 function inferColorFromName(value = "") {

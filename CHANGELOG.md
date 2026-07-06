@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.20 - 2026-07-06
+
+- Corrigida a separacao de cor e tamanho na analise de lancamentos.
+- Produtos com nome no formato `Cor - Tamanho`, como `RS8 Avant Monochrome Cinza - 41`, deixam de jogar o tamanho dentro de `Top cores`.
+- Adicionados codigos de cor usados pelo Monochrome, como `MC`, `CF` e `CT`.
+- Atualizado cache bust dos assets para `v=0.5.20`.
+
 ## 0.5.19 - 2026-07-06
 
 - Corrigido o matching de modelos de lancamento quando um produto bate em mais de uma familia comercial.
