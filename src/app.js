@@ -367,6 +367,12 @@ function bindControls() {
     renderLaunchProductPicker(collectLaunchProducts());
     renderLaunchWorkbench();
   });
+  document.getElementById("openLaunchItemsDrawerButton").addEventListener("click", openLaunchItemsDrawer);
+  document.getElementById("closeLaunchItemsDrawerButton").addEventListener("click", closeLaunchItemsDrawer);
+  document.getElementById("launchItemsDrawerBackdrop").addEventListener("click", closeLaunchItemsDrawer);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeLaunchItemsDrawer();
+  });
 }
 
 function switchView(view) {
@@ -1567,6 +1573,35 @@ function handleLaunchSelectedProductsClick(event) {
   renderLaunchWorkbench();
 }
 
+function openLaunchItemsDrawer() {
+  const drawer = document.getElementById("launchItemsDrawer");
+  const backdrop = document.getElementById("launchItemsDrawerBackdrop");
+  if (!drawer || !backdrop) return;
+  drawer.hidden = false;
+  backdrop.hidden = false;
+  drawer.setAttribute("aria-hidden", "false");
+  document.body.classList.add("launch-items-drawer-open");
+  requestAnimationFrame(() => {
+    drawer.classList.add("is-open");
+    backdrop.classList.add("is-open");
+    document.getElementById("closeLaunchItemsDrawerButton")?.focus();
+  });
+}
+
+function closeLaunchItemsDrawer() {
+  const drawer = document.getElementById("launchItemsDrawer");
+  const backdrop = document.getElementById("launchItemsDrawerBackdrop");
+  if (!drawer || !backdrop || drawer.hidden) return;
+  drawer.classList.remove("is-open");
+  backdrop.classList.remove("is-open");
+  drawer.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("launch-items-drawer-open");
+  window.setTimeout(() => {
+    drawer.hidden = true;
+    backdrop.hidden = true;
+  }, 160);
+}
+
 function renderLaunchWorkbench() {
   const root = document.getElementById("launchWorkbench");
   if (!root || root.hidden) return;
@@ -1836,9 +1871,41 @@ function renderLaunchWindowCards(analysis) {
 
 function renderLaunchProductTable(analysis) {
   const body = document.getElementById("launchProductTable");
+  const summary = document.getElementById("launchItemsSummary");
+  const drawerSummary = document.getElementById("launchItemsDrawerSummary");
+  const openButton = document.getElementById("openLaunchItemsDrawerButton");
   if (!body) return;
+  const variants = analysis.productSummary.byVariant || [];
+  const topVariant = variants[0] || null;
+  const topColor = analysis.productSummary.byColor?.[0] || null;
+  const topSize = analysis.productSummary.bySize?.[0] || null;
+
+  const summaryCards = [
+    ["Variacoes", formatInteger(variants.length), `${formatInteger(analysis.productSummary.items)} itens`],
+    ["Top item", topVariant ? topVariant.modelName || topVariant.name : "-", topVariant ? `${formatInteger(topVariant.items)} itens` : "Sem venda"],
+    ["Cor lider", topColor ? topColor.label : "-", topColor ? `${formatInteger(topColor.items)} itens` : "Sem cor"],
+    ["Tamanho lider", topSize ? topSize.label : "-", topSize ? `${formatInteger(topSize.items)} itens` : "Sem tamanho"],
+  ];
+  const summaryHtml = summaryCards
+    .map(
+      ([label, value, note]) => `
+        <span>
+          <small>${escapeHtml(label)}</small>
+          <strong>${escapeHtml(value)}</strong>
+          <em>${escapeHtml(note)}</em>
+        </span>
+      `
+    )
+    .join("");
+  if (summary) summary.innerHTML = summaryHtml;
+  if (drawerSummary) drawerSummary.innerHTML = summaryHtml;
+  if (openButton) {
+    openButton.disabled = !variants.length;
+    openButton.textContent = variants.length ? "Ver itens" : "Sem itens";
+  }
+
   body.innerHTML =
-    analysis.productSummary.byVariant
+    variants
       .map((item) => {
         const stock = state.indexes.estoque[item.sku] || {};
         return `

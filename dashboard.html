@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Calendário Comercial Reise</title>
-    <link rel="stylesheet" href="src/style.css?v=0.5.15" />
+    <link rel="stylesheet" href="src/style.css?v=0.5.16" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="src/app.js?v=0.5.15" defer></script>
+    <script src="src/app.js?v=0.5.16" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -562,27 +562,15 @@
             <div id="launchWindowCards" class="launch-window-grid"></div>
           </article>
 
-          <article class="launch-detail-panel">
-            <div class="section-heading">
-              <span class="eyebrow">Tenis</span>
-              <h2>Modelo, cor e tamanho</h2>
+          <article class="launch-detail-panel launch-items-summary-panel">
+            <div class="section-heading launch-items-heading">
+              <div>
+                <span class="eyebrow">Itens</span>
+                <h2>Modelo, cor e tamanho</h2>
+              </div>
+              <button id="openLaunchItemsDrawerButton" class="secondary-button" type="button">Ver itens</button>
             </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Modelo do tenis / variacao</th>
-                    <th>Cor</th>
-                    <th>Tam.</th>
-                    <th class="numeric-cell">Receita</th>
-                    <th class="numeric-cell">Itens</th>
-                    <th class="numeric-cell">Ticket/item</th>
-                    <th>Estoque</th>
-                  </tr>
-                </thead>
-                <tbody id="launchProductTable"></tbody>
-              </table>
-            </div>
+            <div id="launchItemsSummary" class="launch-items-summary"></div>
           </article>
 
           <article class="launch-detail-panel launch-media-panel">
@@ -595,5 +583,33 @@
         </section>
       </section>
     </main>
+
+    <div id="launchItemsDrawerBackdrop" class="launch-items-drawer-backdrop" hidden></div>
+    <aside id="launchItemsDrawer" class="launch-items-drawer" role="dialog" aria-modal="true" aria-labelledby="launchItemsDrawerTitle" aria-hidden="true" hidden>
+      <div class="launch-items-drawer-head">
+        <div>
+          <span class="eyebrow">Itens</span>
+          <h2 id="launchItemsDrawerTitle">Modelo, cor e tamanho</h2>
+        </div>
+        <button id="closeLaunchItemsDrawerButton" class="secondary-button" type="button">Fechar</button>
+      </div>
+      <div id="launchItemsDrawerSummary" class="launch-items-summary launch-items-drawer-summary"></div>
+      <div class="table-wrap launch-items-drawer-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Modelo do tenis / variacao</th>
+              <th>Cor</th>
+              <th>Tam.</th>
+              <th class="numeric-cell">Receita</th>
+              <th class="numeric-cell">Itens</th>
+              <th class="numeric-cell">Ticket/item</th>
+              <th>Estoque</th>
+            </tr>
+          </thead>
+          <tbody id="launchProductTable"></tbody>
+        </table>
+      </div>
+    </aside>
   </body>
 </html>

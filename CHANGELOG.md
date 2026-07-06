@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.16 - 2026-07-06
+
+- Movida a tabela grande de itens da aba `Analise de lancamentos` para um drawer lateral.
+- O painel principal passa a mostrar apenas um resumo de variacoes, top item, cor lider e tamanho lider.
+- Adicionado botao `Ver itens` para abrir a tabela completa de modelo, cor, tamanho, receita, itens e estoque.
+- Atualizado cache bust dos assets para `v=0.5.16`.
+
 ## 0.5.15 - 2026-07-06
 
 - Corrigido o layout da area `Janelas` na aba `Analise de lancamentos` para nao esticar quando a tabela de modelo/cor/tamanho tem muitas linhas.
