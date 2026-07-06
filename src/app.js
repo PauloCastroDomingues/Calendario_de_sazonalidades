@@ -1690,7 +1690,8 @@ function buildLaunchWorkbenchAnalysis() {
 
 function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbackLaunchDate) {
   return selectedProducts.map((product) => {
-    const launchDate = product.launchDate || product.firstDate || fallbackLaunchDate;
+    const launchWindowStart = resolveLaunchWindowStart(product, fallbackLaunchDate);
+    const launchDate = launchWindowStart.launchDate;
     const plannedEnd = addDays(launchDate, windowDays - 1);
     const actualEnd = cutoff && cutoff < plannedEnd ? cutoff : plannedEnd;
     const actualKeys = launchDate && actualEnd >= launchDate ? dateKeysBetween(launchDate, actualEnd) : [];
@@ -1699,6 +1700,9 @@ function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbac
       product,
       productKey: product.key,
       launchDate,
+      officialLaunchDate: launchWindowStart.officialLaunchDate,
+      firstCapturedDate: launchWindowStart.firstCapturedDate,
+      launchDateAdjusted: launchWindowStart.adjusted,
       plannedEnd,
       actualEnd,
       windowDays,
@@ -1706,6 +1710,25 @@ function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbac
       baselineKeys,
     };
   });
+}
+
+function resolveLaunchWindowStart(product = {}, fallbackLaunchDate = "") {
+  const officialLaunchDate = product.launchDate || "";
+  const firstCapturedDate = product.firstDate && (product.revenue || product.items) ? product.firstDate : "";
+  const hasFullLaunchRows = !getLaunchProductSourceMeta().isFallback;
+  const adjusted = Boolean(
+    hasFullLaunchRows &&
+      officialLaunchDate &&
+      firstCapturedDate &&
+      firstCapturedDate > officialLaunchDate
+  );
+
+  return {
+    officialLaunchDate,
+    firstCapturedDate,
+    adjusted,
+    launchDate: adjusted ? firstCapturedDate : officialLaunchDate || firstCapturedDate || fallbackLaunchDate,
+  };
 }
 
 function resolveLaunchComparisonProducts(products, selectedProducts) {
@@ -1755,7 +1778,8 @@ function buildLaunchComparisonRows(productWindows) {
         name: window.product.name,
         isSelected: selectedKeys.has(window.productKey),
         launchDate: window.launchDate,
-        launchDateLabel: window.launchDate ? `D0 ${formatShortDate(window.launchDate)}` : "Sem D0",
+        launchDateLabel: launchWindowDateLabel(window, window.product),
+        launchDateAdjusted: window.launchDateAdjusted,
         totalRevenue: total.revenue,
         totalItems: total.items,
         d0Revenue: d0.revenue,
@@ -1845,13 +1869,17 @@ function renderLaunchInsight(analysis) {
     analysis.selectedProducts.length > 1
       ? " Cada modelo usa a propria data de lancamento como D0 para comparar desempenho em dias relativos."
       : "";
+  const adjustedCount = analysis.productWindows.filter((window) => window.launchDateAdjusted).length;
+  const adjustedNote = adjustedCount
+    ? ` ${adjustedCount} modelo(s) usam D0 SSOT porque a data oficial nao tem cobertura de SKU na base exportada.`
+    : "";
   const sourceNote = analysis.dataSource?.isFallback
     ? " Fonte atual: recorte top/queda; rode o Apps Script atualizado para carregar a base completa de lancamentos."
     : " Fonte atual: base completa de lancamentos por SKU/dia.";
 
   target.innerHTML = `
     <strong>${escapeHtml(eventName)} · ${escapeHtml(productLabel)}</strong>
-    <span>Janela analisada: ${actualText}.${relativeNote} Modelo vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.${sourceNote}</span>
+    <span>Janela analisada: ${actualText}.${relativeNote}${adjustedNote} Modelo vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.${sourceNote}</span>
   `;
 }
 
@@ -1951,7 +1979,9 @@ function renderLaunchComparison(analysis) {
       .slice(0, 6)
       .map((row, index) => {
         const badge = row.isSelected ? "Selecionado" : "Referencia";
-        const evidence = row.sourceGap
+        const evidence = row.launchDateAdjusted
+          ? `D0 SSOT ajustado a partir da primeira venda capturada`
+          : row.sourceGap
           ? `${formatInteger(row.totalItems)} itens na base parcial`
           : row.totalItems
             ? `${formatInteger(row.totalItems)} itens capturados`
@@ -1988,7 +2018,13 @@ function renderLaunchComparison(analysis) {
             <td>${escapeHtml(row.peakWeekLabel)}<br><span>${formatCurrency(row.peakWeekRevenue)}</span></td>
             <td>${escapeHtml(row.topColorLabel)}</td>
             <td>${escapeHtml(row.topSizeLabel)}</td>
-            <td>${row.sourceGap ? `<span class="status-chip warning">Base incompleta</span>` : `<span class="status-chip success">Capturado</span>`}</td>
+            <td>${
+              row.launchDateAdjusted
+                ? `<span class="status-chip warning">D0 SSOT</span>`
+                : row.sourceGap
+                  ? `<span class="status-chip warning">Base incompleta</span>`
+                  : `<span class="status-chip success">Capturado</span>`
+            }</td>
           </tr>
         `
       )
@@ -2014,6 +2050,7 @@ function renderLaunchProductCards(analysis) {
     .slice(0, 8)
     .map((product, index) => {
       const productWindow = analysis.productWindows.find((item) => item.productKey === product.key) || {
+        product,
         actualKeys: analysis.actualKeys,
         baselineKeys: analysis.baselineKeys,
       };
@@ -2035,7 +2072,7 @@ function renderLaunchProductCards(analysis) {
       return `
         <article class="launch-product-card launch-product-tone-${(index % 6) + 1}">
           <div>
-            <span>Modelo ${index + 1} - ${escapeHtml(launchProductDateLabel(product))}</span>
+            <span>Modelo ${index + 1} - ${escapeHtml(launchWindowDateLabel(productWindow, product))}</span>
             <h3>${escapeHtml(product.name)}</h3>
             <p>${escapeHtml(launchProductMetaLabel(product))}</p>
           </div>
@@ -2564,6 +2601,15 @@ function launchProductMetaLabel(product = {}, options = {}) {
 
 function launchProductDateLabel(product = {}) {
   return product.launchDate ? `Lanc. ${formatShortDate(product.launchDate)}` : "Sem data";
+}
+
+function launchWindowDateLabel(window = {}, product = {}) {
+  if (window.launchDateAdjusted && window.launchDate) {
+    const official = window.officialLaunchDate ? ` (oficial ${formatShortDate(window.officialLaunchDate)})` : "";
+    return `D0 SSOT ${formatShortDate(window.launchDate)}${official}`;
+  }
+  if (window.launchDate) return `D0 ${formatShortDate(window.launchDate)}`;
+  return launchProductDateLabel(product);
 }
 
 function renderLaunchBreakdownBars(items = [], totalItems = 0) {

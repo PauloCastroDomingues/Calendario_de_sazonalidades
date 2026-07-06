@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.25 - 2026-07-06
+
+- Corrigida a janela de D0 dos modelos de lancamento quando a data oficial da planilha fica antes da primeira venda capturada na base diaria de SKU.
+- O painel agora usa `D0 SSOT` nesses casos, preservando a data oficial no rotulo para auditoria e evitando curvas/card zerados por falta de cobertura historica.
+- Validado que Phantom e Monochrome usam a data oficial como D0 e aparecem com faturamento a partir da base completa `lancamentos_produtos_dia.json`.
+- Atualizado cache bust dos assets para `v=0.5.25`.
+
 ## 0.5.24 - 2026-07-06
 
 - Corrigida a origem de produtos e lancamentos para a bridge `mart_growth_us.shopify_sales_by_sku_daily_v`, evitando fallback parcial de top/queda para curvas de D+0.
