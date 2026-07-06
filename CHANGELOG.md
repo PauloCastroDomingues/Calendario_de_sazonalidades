@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.12 - 2026-07-06
+
+- Exibida a data de lancamento cadastrada na planilha diretamente nos cards de modelos da aba `Analise de lancamentos`.
+- Ajustado o vinculo por nome/chave do modelo para herdar a data de `lancamentos_modelos` mesmo com abas enxutas.
+- Diferenciado `Sem data` nos modelos sem cadastro de lancamento.
+- Atualizado cache bust dos assets para `v=0.5.12`.
+
 ## 0.5.11 - 2026-07-03
 
 - Removido o campo manual de data da aba `Analise de lancamentos`; a data passa a vir do cadastro do modelo.

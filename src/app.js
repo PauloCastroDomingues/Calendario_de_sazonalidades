@@ -1497,11 +1497,12 @@ function renderLaunchProductPicker(products) {
                 <span class="launch-checkbox" aria-hidden="true">${checked ? "✓" : ""}</span>
                 <span class="launch-product-option-main">
                   <strong>${escapeHtml(product.name)}</strong>
-                  <small>${escapeHtml(launchProductMetaLabel(product))}</small>
+                  <small>${escapeHtml(launchProductMetaLabel(product, { includeLaunchDate: false }))}</small>
                 </span>
                 <span class="launch-product-option-meta">
                   <strong>${formatCompactCurrency(product.revenue)}</strong>
                   <small>${formatInteger(product.items)} itens</small>
+                  <small class="launch-product-option-date${product.launchDate ? "" : " is-missing"}">${escapeHtml(launchProductDateLabel(product))}</small>
                 </span>
               </button>
             `;
@@ -1528,6 +1529,7 @@ function getLaunchProductSearchText(product = {}) {
       product.sku,
       product.productKey,
       product.key,
+      product.launchDate,
       ...(product.colorSummary || []).map((item) => item.label),
       ...(product.sizeSummary || []).map((item) => item.label),
     ].join(" ")
@@ -1744,7 +1746,7 @@ function renderLaunchProductCards(analysis) {
       return `
         <article class="launch-product-card launch-product-tone-${(index % 6) + 1}">
           <div>
-            <span>Modelo ${index + 1}</span>
+            <span>Modelo ${index + 1} - ${escapeHtml(launchProductDateLabel(product))}</span>
             <h3>${escapeHtml(product.name)}</h3>
             <p>${escapeHtml(launchProductMetaLabel(product))}</p>
           </div>
@@ -1993,7 +1995,25 @@ function launchModelIdentity(row = {}, configs = []) {
 
   const pattern = LAUNCH_MODEL_PATTERNS.find((item) => item.pattern.test(text));
   const name = pattern?.name || inferLaunchFallbackModelName(row);
-  return { key: slug(name), name, topic: inferLaunchProductTopic(row, name), config: null };
+  const modelKey = slug(name);
+  const normalizedName = normalizeComparableText(name);
+  const directConfig = configs.find((config) => {
+    const configName = normalizeComparableText(config.modelo || "");
+    return (
+      config.model_key === modelKey ||
+      configName === normalizedName ||
+      (normalizedName.length >= 8 && configName.includes(normalizedName))
+    );
+  });
+  if (directConfig) {
+    return {
+      key: directConfig.model_key,
+      name: directConfig.modelo || name,
+      topic: directConfig.topico || inferLaunchProductTopic(row, directConfig.modelo || name),
+      config: directConfig,
+    };
+  }
+  return { key: modelKey, name, topic: inferLaunchProductTopic(row, name), config: null };
 }
 
 function inferLaunchFallbackModelName(row = {}) {
@@ -2050,16 +2070,21 @@ function launchBreakdownEntries(map, limit = 5) {
   return [...map.values()].sort((a, b) => b.items - a.items || b.revenue - a.revenue).slice(0, limit);
 }
 
-function launchProductMetaLabel(product = {}) {
+function launchProductMetaLabel(product = {}, options = {}) {
   const colorCount = product.colorSummary?.length || 0;
   const sizeCount = product.sizeSummary?.length || 0;
   const skuCount = product.skuCount || product.skus?.length || 0;
+  const includeLaunchDate = options.includeLaunchDate !== false;
   const parts = [];
   if (colorCount) parts.push(`${colorCount} cor${colorCount === 1 ? "" : "es"}`);
   if (sizeCount) parts.push(`${sizeCount} tamanho${sizeCount === 1 ? "" : "s"}`);
   if (skuCount) parts.push(`${skuCount} SKU${skuCount === 1 ? "" : "s"}`);
-  if (product.launchDate) parts.push(`Lanc. ${formatShortDate(product.launchDate)}`);
+  if (includeLaunchDate && product.launchDate) parts.push(launchProductDateLabel(product));
   return parts.join(" · ") || product.productKey || product.sku || product.key;
+}
+
+function launchProductDateLabel(product = {}) {
+  return product.launchDate ? `Lanc. ${formatShortDate(product.launchDate)}` : "Sem data";
 }
 
 function renderLaunchBreakdownBars(items = [], totalItems = 0) {

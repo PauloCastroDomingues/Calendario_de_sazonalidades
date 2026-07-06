@@ -1836,6 +1836,17 @@ textarea {
   justify-items: end;
 }
 
+.launch-product-option-date {
+  color: var(--green-700);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.launch-product-option-date.is-missing {
+  color: var(--gray-400);
+  font-weight: 800;
+}
+
 .launch-product-empty {
   border: 1px dashed var(--gray-200);
   border-radius: 8px;
