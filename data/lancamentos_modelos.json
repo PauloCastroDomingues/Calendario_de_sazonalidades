@@ -3,37 +3,52 @@
     "modelo": "GT",
     "data_lancamento": "2025-02-11",
     "observacao": "lançamento oficial 18/out/2024. Primeira venda na base em 11/fev/2025 (gap de 116 dias). Causa: ausência de dados Shopify referentes ao período Shoppub pré-migração. Dia 0 usado = 11/fev/2025. (com base na primeira venda captada)",
-    "data_oficial": "",
-    "day_zero_base": "",
-    "confiabilidade": ""
+    "data_oficial": "2025-02-11T03:00:00Z",
+    "day_zero_base": "2025-02-11T03:00:00Z",
+    "confiabilidade": "",
+    "modelo_id": "",
+    "linha": "",
+    "termos_busca": "",
+    "sku_prefixos": "",
+    "status": ""
   },
   {
     "modelo": "Avant",
     "data_lancamento": "2025-10-02",
     "observacao": "lançamento oficial captato no ssot",
-    "data_oficial": "",
-    "day_zero_base": "",
-    "confiabilidade": ""
+    "data_oficial": "2025-10-02T03:00:00Z",
+    "day_zero_base": "2025-10-02T03:00:00Z",
+    "confiabilidade": "",
+    "modelo_id": "",
+    "linha": "",
+    "termos_busca": "",
+    "sku_prefixos": "",
+    "status": ""
   },
   {
     "modelo": "Phantom",
     "data_lancamento": "2026-04-16",
     "observacao": "lançamento oficial captato no ssot",
-    "data_oficial": "",
-    "day_zero_base": "",
-    "confiabilidade": ""
+    "data_oficial": "2026-04-16T03:00:00Z",
+    "day_zero_base": "2026-04-16T03:00:00Z",
+    "confiabilidade": "",
+    "modelo_id": "",
+    "linha": "",
+    "termos_busca": "",
+    "sku_prefixos": "",
+    "status": ""
   },
   {
-    "modelo_id": "rs8_monochrome",
-    "modelo": "RS8 Avant Monochrome",
-    "linha": "Monochrome",
+    "modelo": "monochrome",
     "data_lancamento": "2026-06-25",
-    "data_oficial": "2026-06-25",
-    "day_zero_base": "2026-06-25",
-    "termos_busca": "RS8 Avant Monochrome|RS8AVANT Monochrome|RS8AvantMonochrome|Monochrome",
+    "observacao": "lançamento oficial captato no ssot",
+    "data_oficial": "2026-06-25T03:00:00Z",
+    "day_zero_base": "2026-06-25T03:00:00Z",
+    "confiabilidade": "",
+    "modelo_id": "",
+    "linha": "",
+    "termos_busca": "",
     "sku_prefixos": "",
-    "status": "Ativo",
-    "observacao": "Lançamento oficial RS8 Avant Monochrome",
-    "confiabilidade": ""
+    "status": ""
   }
 ]
