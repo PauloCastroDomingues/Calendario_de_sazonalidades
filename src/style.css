@@ -2076,6 +2076,13 @@ textarea {
   background: #f3faf6;
 }
 
+.launch-chart-note {
+  margin: 2px 0 10px;
+  color: var(--gray-500);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
 .launch-product-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

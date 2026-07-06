@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.23 - 2026-07-06
+
+- Corrigida a curva de faturamento acumulado de lancamentos para nao tratar ausencia de linha no recorte `produtos_dia.json` como faturamento zero.
+- Em fonte parcial, dias sem captura agora viram lacunas no grafico; em fonte completa, dias sem venda continuam carregando o acumulado anterior.
+- Adicionada nota no card de curva explicando quando a leitura depende do export completo `lancamentos_produtos_dia.json`.
+- Atualizado cache bust dos assets para `v=0.5.23`.
+
 ## 0.5.22 - 2026-07-06
 
 - Reforcado o Apps Script para incluir linhas dos modelos de lancamento tambem em `produtos_dia.json`, reduzindo o risco de curva em branco quando o arquivo completo de lancamentos ainda nao foi gerado.

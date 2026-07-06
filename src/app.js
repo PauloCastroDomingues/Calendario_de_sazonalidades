@@ -2065,6 +2065,7 @@ function renderLaunchProductCards(analysis) {
 
 function renderLaunchCurves(analysis) {
   const labels = analysis.curve.labels;
+  const note = document.getElementById("launchCurveNote");
   const colors = ["#1e5a49", "#b98d43", "#2d5d83", "#8b6424", "#9b3e37", "#59615d"];
   const revenueDatasets = analysis.curve.revenueSeries.map((series, index) => ({
     label: series.label,
@@ -2072,6 +2073,11 @@ function renderLaunchCurves(analysis) {
     color: colors[index % colors.length],
     fill: index === 0 && analysis.curve.revenueSeries.length === 1,
   }));
+  if (note) {
+    note.textContent = analysis.curve.sourceGap
+      ? "Fonte parcial: lacunas indicam dias sem captura no recorte atual, nao faturamento zero."
+      : "Fonte completa: dias sem venda carregam o acumulado anterior.";
+  }
 
   renderChart(
     "launchCurveChart",
@@ -2902,19 +2908,24 @@ function buildLaunchWorkbenchWindows(productWindows, event) {
 }
 
 function buildLaunchCurve(productWindows, selectedProducts) {
+  const sourceGap = getLaunchProductSourceMeta().isFallback;
   const maxDays = Math.max(0, ...productWindows.map((window) => window.actualKeys.length));
   const labels = Array.from({ length: maxDays }, (_, index) => `D+${index}`);
-  const dailyItems = labels.map((_, index) =>
-    productWindows.reduce((sum, window) => {
+  const dailyItems = labels.map((_, index) => {
+    let captured = false;
+    const value = productWindows.reduce((sum, window) => {
       const dateKey = window.actualKeys[index];
       if (!dateKey) return sum;
-      const items = filterProductRowsByKeys([dateKey], [window.productKey]).reduce(
+      const rows = filterProductRowsByKeys([dateKey], [window.productKey]);
+      if (rows.length) captured = true;
+      const items = rows.reduce(
         (rowSum, row) => rowSum + Number(row.itens_vendidos || 0),
         0
       );
       return sum + items;
-    }, 0)
-  );
+    }, 0);
+    return sourceGap && !captured ? null : value;
+  });
   const dailyOrders = labels.map((_, index) => {
     const keys = uniqueDateKeys(productWindows.map((window) => window.actualKeys[index]).filter(Boolean));
     return getMetricSummary(keys).pedidos_aprovados;
@@ -2927,7 +2938,9 @@ function buildLaunchCurve(productWindows, selectedProducts) {
       values: labels.map((_, index) => {
         const dateKey = productWindow?.actualKeys[index];
         if (!dateKey) return null;
-        const dayRevenue = filterProductRowsByKeys([dateKey], [product.key]).reduce(
+        const rows = filterProductRowsByKeys([dateKey], [product.key]);
+        if (sourceGap && !rows.length) return null;
+        const dayRevenue = rows.reduce(
           (sum, row) => sum + Number(row.receita_produto || 0),
           0
         );
@@ -2936,7 +2949,7 @@ function buildLaunchCurve(productWindows, selectedProducts) {
       }),
     };
   });
-  return { labels, dailyItems, dailyOrders, revenueSeries };
+  return { labels, dailyItems, dailyOrders, revenueSeries, sourceGap };
 }
 
 function getDataCutoffKey() {
