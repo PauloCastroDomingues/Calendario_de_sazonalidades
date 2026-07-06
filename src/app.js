@@ -73,6 +73,47 @@ const FLUCTUATION_METRICS = [
   { key: "taxa_conversao", label: "Conversão", formatter: formatPercent },
 ];
 
+const CHART_FONT_FAMILY = 'Inter, "Segoe UI", Arial, sans-serif';
+const CHART_TEXT_COLOR = "#59615d";
+const CHART_GRID_COLOR = "rgba(18, 55, 47, 0.07)";
+const CHART_AXIS_BORDER_COLOR = "rgba(18, 55, 47, 0.12)";
+const LAUNCH_CHART_CANVAS_IDS = new Set([
+  "launchCurveChart",
+  "launchDailyChart",
+  "launchItemsCurveChart",
+  "launchMultiplierChart",
+  "launchMixChart",
+  "launchWeeklyRevenueChart",
+]);
+const LAUNCH_MODEL_COLOR_MAP = {
+  gt: "#B8923A",
+  avant: "#3D5220",
+  phantom: "#B14422",
+  monochrome: "#876A2C",
+};
+const LAUNCH_MODEL_COLOR_PALETTE = [
+  "#B8923A",
+  "#3D5220",
+  "#B14422",
+  "#8B6E2A",
+  "#627A31",
+  "#C45B32",
+  "#D1AE58",
+  "#2E421A",
+  "#7F3019",
+  "#A48634",
+  "#506927",
+  "#D0784A",
+];
+const CHART_FALLBACK_COLORS = [
+  "#3D5220",
+  "#B8923A",
+  "#B14422",
+  "#876A2C",
+  "#627A31",
+  "#7F3019",
+];
+
 const LAUNCH_MODEL_PATTERNS = [
   { pattern: /\bmonochrome\b|\brs\s*8\s*monochrome\b|\brs8monochrome\b/, name: "Monochrome" },
   { pattern: /\bavant\b|\brs\s*[678]\s*avant\b|\brs[678]avant\b/, name: "Avant" },
@@ -2539,11 +2580,10 @@ function renderLaunchProductCards(analysis) {
 function renderLaunchCurves(analysis) {
   const labels = analysis.curve.labels;
   const note = document.getElementById("launchCurveNote");
-  const colors = ["#1e5a49", "#b98d43", "#2d5d83", "#8b6424", "#9b3e37", "#59615d"];
   const revenueDatasets = analysis.curve.revenueSeries.map((series, index) => ({
     label: series.label,
     data: series.values,
-    color: colors[index % colors.length],
+    color: launchChartColorForModel(series.label, analysis.curve.revenueSeries.map((item) => item.label)),
     fill: index === 0 && analysis.curve.revenueSeries.length === 1,
   }));
   if (note) {
@@ -2562,8 +2602,8 @@ function renderLaunchCurves(analysis) {
     "launchDailyChart",
     labels,
     [
-      { label: "Itens modelo", data: analysis.curve.dailyItems, color: "#b98d43", fill: true },
-      { label: "Pedidos contexto", data: analysis.curve.dailyOrders, color: "#1e5a49", fill: false },
+      { label: "Itens modelo", data: analysis.curve.dailyItems, color: "#B8923A", fill: true },
+      { label: "Pedidos contexto", data: analysis.curve.dailyOrders, color: "#3D5220", fill: false },
     ],
     formatInteger
   );
@@ -3526,12 +3566,13 @@ function buildLaunchCurve(productWindows, selectedProducts) {
 }
 
 function buildLaunchCumulativeSeries(productWindows, selectedProducts, labels, field, sourceGap) {
-  return selectedProducts.slice(0, 6).map((product, index) => {
+  const productNames = selectedProducts.slice(0, 6).map((product) => product.name);
+  return selectedProducts.slice(0, 6).map((product) => {
     let cumulative = 0;
     const productWindow = productWindows.find((window) => window.productKey === product.key);
     return {
       label: product.name,
-      color: launchChartColor(index),
+      color: launchChartColorForModel(product.name, productNames),
       fill: false,
       values: labels.map((_, dayIndex) => {
         const dateKey = productWindow?.actualKeys[dayIndex];
@@ -3565,7 +3606,8 @@ function buildLaunchCumulativeSeries(productWindows, selectedProducts, labels, f
 }
 
 function buildLaunchMultiplierSeries(productWindows, selectedProducts, labels, sourceGap) {
-  return selectedProducts.slice(0, 6).map((product, index) => {
+  const productNames = selectedProducts.slice(0, 6).map((product) => product.name);
+  return selectedProducts.slice(0, 6).map((product) => {
     const productWindow = productWindows.find((window) => window.productKey === product.key);
     let cumulative = 0;
     let base15 = 0;
@@ -3581,7 +3623,7 @@ function buildLaunchMultiplierSeries(productWindows, selectedProducts, labels, s
     });
     return {
       label: product.name,
-      color: launchChartColor(index),
+      color: launchChartColorForModel(product.name, productNames),
       fill: false,
       data: values,
     };
@@ -3592,6 +3634,7 @@ function buildLaunchWeeklyCurveSeries(productWindows, selectedProducts, sourceGa
   const maxDays = Math.max(0, ...productWindows.map((window) => window.actualKeys.length));
   const weekCount = Math.ceil(maxDays / 7);
   const labels = Array.from({ length: weekCount }, (_, index) => `S${index + 1}`);
+  const productNames = selectedProducts.slice(0, 6).map((product) => product.name);
   const weeklyValuesByProduct = selectedProducts.slice(0, 6).map((product) => {
     const productWindow = productWindows.find((window) => window.productKey === product.key);
     return labels.map((_, weekIndex) => {
@@ -3609,21 +3652,40 @@ function buildLaunchWeeklyCurveSeries(productWindows, selectedProducts, sourceGa
     labels,
     revenueSeries: selectedProducts.slice(0, 6).map((product, index) => ({
       label: product.name,
-      color: launchChartColor(index),
+      color: launchChartColorForModel(product.name, productNames),
       fill: false,
       data: weeklyValuesByProduct[index] || [],
     })),
     mixSeries: selectedProducts.slice(0, 6).map((product, index) => ({
       label: product.name,
-      color: launchChartColor(index),
+      color: launchChartColorForModel(product.name, productNames),
       fill: false,
       data: (weeklyValuesByProduct[index] || []).map((value, weekIndex) => safeDivide(value, weeklyTotals[weekIndex])),
     })),
   };
 }
 
-function launchChartColor(index) {
-  return ["#1e5a49", "#b98d43", "#2d5d83", "#8b6424", "#9b3e37", "#59615d"][index % 6];
+function launchChartColorForModel(modelName, modelNames = []) {
+  const key = modelColorKey(modelName);
+  if (LAUNCH_MODEL_COLOR_MAP[key]) return LAUNCH_MODEL_COLOR_MAP[key];
+
+  const sheetKeys = (state.data.lancamentosModelos || []).map((model) => modelColorKey(model.modelo));
+  const sortedKeys = [...new Set(sheetKeys.length ? sheetKeys : modelNames.map(modelColorKey).filter(Boolean))]
+    .filter((item) => !LAUNCH_MODEL_COLOR_MAP[item])
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const index = sortedKeys.indexOf(key);
+  if (index < 0) return LAUNCH_MODEL_COLOR_PALETTE[stableStringIndex(key, LAUNCH_MODEL_COLOR_PALETTE.length)];
+  return LAUNCH_MODEL_COLOR_PALETTE[index % LAUNCH_MODEL_COLOR_PALETTE.length];
+}
+
+function modelColorKey(value = "") {
+  return slug(value).replace(/-/g, "");
+}
+
+function stableStringIndex(value, modulo) {
+  const text = String(value || "");
+  const hash = Array.from(text).reduce((acc, char) => (acc * 31 + char.charCodeAt(0)) % 9973, 17);
+  return hash % modulo;
 }
 
 function getDataCutoffKey() {
@@ -3847,6 +3909,8 @@ function renderChart(canvasId, labels, datasets, formatter) {
     return;
   }
 
+  configureChartDefaults();
+
   canvas.style.display = "block";
   const fallback = canvas.parentElement.querySelector(".fallback-chart");
   if (fallback) fallback.remove();
@@ -3855,21 +3919,24 @@ function renderChart(canvasId, labels, datasets, formatter) {
     state.charts[canvasId].destroy();
   }
 
+  const chartDatasets = normalizeChartDatasets(canvasId, datasets);
+  const tickFormatter = formatter === formatCurrency ? formatChartCompactCurrency : formatter;
+
   state.charts[canvasId] = new Chart(canvas, {
     type: "line",
     data: {
       labels,
-      datasets: datasets.map((dataset) => ({
+      datasets: chartDatasets.map((dataset) => ({
         label: dataset.label,
         data: dataset.data,
         borderColor: dataset.color,
-        backgroundColor:
-          dataset.color === "#b98d43"
-            ? "rgba(185, 141, 67, 0.12)"
-            : "rgba(30, 90, 73, 0.12)",
+        backgroundColor: dataset.fill ? colorWithAlpha(dataset.color, 0.08) : "rgba(255, 255, 255, 0)",
         borderWidth: 2,
         pointRadius: 2,
         pointHoverRadius: 5,
+        pointBackgroundColor: "#ffffff",
+        pointBorderColor: dataset.color,
+        pointBorderWidth: 1.5,
         fill: dataset.fill,
         tension: 0.35,
       })),
@@ -3879,21 +3946,108 @@ function renderChart(canvasId, labels, datasets, formatter) {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          display: datasets.length > 1,
-          labels: { boxWidth: 10, usePointStyle: true },
+          display: chartDatasets.length > 1,
+          position: "top",
+          align: "start",
+          labels: {
+            boxWidth: 8,
+            boxHeight: 8,
+            color: CHART_TEXT_COLOR,
+            font: { family: CHART_FONT_FAMILY, size: 11, weight: "600" },
+            padding: 14,
+            usePointStyle: true,
+          },
         },
         tooltip: {
+          backgroundColor: "rgba(18, 24, 22, 0.94)",
+          borderWidth: 0,
+          cornerRadius: 6,
+          displayColors: true,
+          padding: 10,
+          titleColor: "#ffffff",
+          titleFont: { family: CHART_FONT_FAMILY, size: 11, weight: "700" },
+          bodyColor: "#ffffff",
+          bodyFont: { family: CHART_FONT_FAMILY, size: 11 },
           callbacks: {
             label: (context) => `${context.dataset.label}: ${formatter(context.parsed.y)}`,
           },
         },
       },
       scales: {
-        x: { grid: { display: false } },
-        y: { beginAtZero: true, ticks: { callback: (value) => formatter(value) } },
+        x: {
+          border: { color: CHART_AXIS_BORDER_COLOR, display: false },
+          grid: { display: false, drawBorder: false },
+          ticks: {
+            color: CHART_TEXT_COLOR,
+            font: { family: CHART_FONT_FAMILY, size: 11 },
+            maxRotation: 45,
+            minRotation: 0,
+          },
+        },
+        y: {
+          beginAtZero: true,
+          border: { color: CHART_AXIS_BORDER_COLOR, display: false },
+          grid: { color: CHART_GRID_COLOR, drawBorder: false },
+          ticks: {
+            color: CHART_TEXT_COLOR,
+            font: { family: CHART_FONT_FAMILY, size: 11 },
+            callback: (value) => tickFormatter(value),
+          },
+        },
       },
     },
   });
+}
+
+function configureChartDefaults() {
+  if (!window.Chart) return;
+  Chart.defaults.font.family = CHART_FONT_FAMILY;
+  Chart.defaults.font.size = 11;
+  Chart.defaults.color = CHART_TEXT_COLOR;
+  Chart.defaults.borderColor = CHART_GRID_COLOR;
+}
+
+function normalizeChartDatasets(canvasId, datasets) {
+  const modelNames = datasets.map((dataset) => dataset.model || dataset.label).filter(Boolean);
+  return datasets.map((dataset, index) => {
+    const label = dataset.label || `Serie ${index + 1}`;
+    const color = resolveChartDatasetColor(canvasId, dataset, index, modelNames);
+    return {
+      ...dataset,
+      label,
+      data: dataset.data || dataset.values || [],
+      color,
+      fill: Boolean(dataset.fill),
+    };
+  });
+}
+
+function resolveChartDatasetColor(canvasId, dataset, index, modelNames) {
+  const label = dataset.model || dataset.label || "";
+  if (LAUNCH_CHART_CANVAS_IDS.has(canvasId) && isLaunchModelLabel(label)) {
+    return launchChartColorForModel(label, modelNames);
+  }
+  return dataset.color || CHART_FALLBACK_COLORS[index % CHART_FALLBACK_COLORS.length];
+}
+
+function isLaunchModelLabel(label) {
+  return Boolean(modelColorKey(label)) && !["itensmodelo", "pedidoscontexto", "atual", "comparado"].includes(modelColorKey(label));
+}
+
+function colorWithAlpha(color, alpha) {
+  const hex = String(color || "").replace("#", "").trim();
+  if (/^[0-9a-f]{3}$/i.test(hex)) {
+    const [r, g, b] = hex.split("").map((char) => parseInt(char + char, 16));
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  if (/^[0-9a-f]{6}$/i.test(hex)) {
+    const value = parseInt(hex, 16);
+    const r = (value >> 16) & 255;
+    const g = (value >> 8) & 255;
+    const b = value & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return "rgba(61, 82, 32, 0.08)";
 }
 
 function renderFallbackChart(canvas, datasets, formatter) {
@@ -3902,7 +4056,7 @@ function renderFallbackChart(canvas, datasets, formatter) {
   const oldFallback = parent.querySelector(".fallback-chart");
   if (oldFallback) oldFallback.remove();
 
-  const values = datasets[0].data.map((value) => Number(value || 0));
+  const values = (datasets[0].data || datasets[0].values || []).map((value) => Number(value || 0));
   const max = Math.max(...values, 1);
   const bars = values
     .map((value) => {
@@ -5769,6 +5923,13 @@ function formatCompactCurrency(value) {
   const number = Number(value || 0);
   if (Math.abs(number) >= 1000000) return `R$ ${(number / 1000000).toFixed(1).replace(".", ",")} mi`;
   if (Math.abs(number) >= 1000) return `R$ ${(number / 1000).toFixed(0)} mil`;
+  return formatCurrency(number);
+}
+
+function formatChartCompactCurrency(value) {
+  const number = Number(value || 0);
+  if (Math.abs(number) >= 1000000) return `R$ ${(number / 1000000).toFixed(1).replace(".", ",")}M`;
+  if (Math.abs(number) >= 1000) return `R$ ${(number / 1000).toFixed(0)}k`;
   return formatCurrency(number);
 }
 
