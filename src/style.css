@@ -1948,6 +1948,156 @@ textarea {
   line-height: 1.45;
 }
 
+.launch-insight ul {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.launch-insight li {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.launch-methodology-panel,
+.launch-hero-panel,
+.launch-projection-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  padding: 16px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.launch-method-heading {
+  align-items: flex-start;
+}
+
+.launch-method-grid,
+.launch-hero-grid,
+.launch-projection-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.launch-method-card,
+.launch-hero-card,
+.launch-projection-card {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--gray-50);
+}
+
+.launch-method-card.is-warning,
+.launch-hero-missing {
+  border-color: rgba(190, 137, 55, 0.45);
+  background: #fffaf0;
+}
+
+.launch-method-card span,
+.launch-hero-card span,
+.launch-projection-card span {
+  color: var(--gray-500);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.launch-method-card strong,
+.launch-hero-card strong,
+.launch-projection-card strong {
+  overflow: hidden;
+  color: var(--green-900);
+  font-size: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.launch-method-card small,
+.launch-hero-card small,
+.launch-projection-card small,
+.launch-hero-copy p {
+  color: var(--gray-700);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.launch-method-alerts {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.launch-method-alerts li {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.35fr) minmax(0, 1fr);
+  gap: 8px;
+  border: 1px solid var(--gray-100);
+  border-left: 4px solid var(--gold);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fffaf0;
+}
+
+.launch-method-alert-critical {
+  border-left-color: #9b3e37 !important;
+}
+
+.launch-method-alerts strong {
+  color: var(--green-900);
+  font-size: 0.78rem;
+}
+
+.launch-method-alerts span {
+  color: var(--gray-700);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.launch-hero-panel {
+  grid-template-columns: minmax(220px, 0.28fr) minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.launch-hero-copy {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  border-right: 1px solid var(--gray-100);
+  padding-right: 14px;
+}
+
+.launch-hero-copy h2 {
+  margin: 0;
+  color: var(--green-900);
+  font-size: 1.15rem;
+}
+
+.launch-hero-card {
+  background: #f7fbf8;
+}
+
+.launch-hero-negative {
+  border-color: rgba(155, 62, 55, 0.28);
+  background: #fff6f5;
+}
+
+.launch-hero-positive {
+  border-color: rgba(30, 90, 73, 0.28);
+}
+
 .launch-metric-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2293,12 +2443,20 @@ textarea {
 
 .launch-chart-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
 .launch-chart-card {
   min-height: 300px;
+}
+
+.launch-window-matrix-wrap table {
+  min-width: 1080px;
+}
+
+.launch-projection-card {
+  background: #f7fbf8;
 }
 
 .launch-detail-grid {
@@ -3137,6 +3295,9 @@ td span {
   .launch-product-select-grid,
   .launch-product-card-grid,
   .launch-metric-grid,
+  .launch-method-grid,
+  .launch-hero-grid,
+  .launch-projection-grid,
   .launch-comparison-grid,
   .launch-chart-grid,
   .launch-intelligence-grid,
@@ -3162,9 +3323,17 @@ td span {
   .automation-health-grid,
   .data-quality-health,
   .data-quality-grid,
+  .launch-hero-panel,
   .launch-items-drawer-summary,
   .action-plan-list li {
     grid-template-columns: 1fr;
+  }
+
+  .launch-hero-copy {
+    border-right: 0;
+    border-bottom: 1px solid var(--gray-100);
+    padding-right: 0;
+    padding-bottom: 12px;
   }
 
   .intelligence-primary {
@@ -3224,6 +3393,9 @@ td span {
   .launch-product-select-grid,
   .launch-product-card-grid,
   .launch-metric-grid,
+  .launch-method-grid,
+  .launch-hero-grid,
+  .launch-projection-grid,
   .launch-comparison-grid,
   .launch-chart-grid,
   .launch-intelligence-grid,
@@ -3234,6 +3406,8 @@ td span {
   .launch-channel-kpis,
   .launch-seasonality-row,
   .launch-channel-row,
+  .launch-method-alerts li,
+  .launch-hero-panel,
   .launch-metrics,
   .launch-windows,
   .readiness-list,

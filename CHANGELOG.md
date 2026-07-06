@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.26 - 2026-07-06
+
+- Implementada camada dinamica da aba de lancamentos baseada na spec: metodologia automatica, destaque 30d, tabela modelo x janela, curvas adicionais e projecao de cenarios.
+- O painel passa a sinalizar lacunas de `cliente_novo`, `order_id`, CRM e investimentos em vez de tratar ausencia de dado como zero real.
+- Adicionados graficos de pares acumulados, multiplicador de aceleracao, mix de produto e faturamento semanal no eixo relativo D+.
+- Apps Script passa a aceitar colunas opcionais em `lancamentos_modelos`: `data_oficial`, `day_zero_base` e `confiabilidade`, mantendo as colunas antigas intactas.
+- Atualizado cache bust dos assets para `v=0.5.26`.
+
 ## 0.5.25 - 2026-07-06
 
 - Corrigida a janela de D0 dos modelos de lancamento quando a data oficial da planilha fica antes da primeira venda capturada na base diaria de SKU.

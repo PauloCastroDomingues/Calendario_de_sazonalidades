@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Calendário Comercial Reise</title>
-    <link rel="stylesheet" href="src/style.css?v=0.5.25" />
+    <link rel="stylesheet" href="src/style.css?v=0.5.26" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="src/app.js?v=0.5.25" defer></script>
+    <script src="src/app.js?v=0.5.26" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -538,6 +538,10 @@
 
         <div id="launchInsight" class="launch-insight"></div>
 
+        <section id="launchMethodologyPanel" class="launch-methodology-panel" aria-label="Metodologia e limitacoes da analise"></section>
+
+        <section id="launchHeroPanel" class="launch-hero-panel" aria-label="Destaque do lancamento atual"></section>
+
         <div id="launchMetricGrid" class="launch-metric-grid"></div>
 
         <section id="launchComparisonPanel" class="launch-comparison-panel" aria-label="Comparativo entre lancamentos" hidden>
@@ -581,6 +585,22 @@
             <h3>Pedidos e itens por dia</h3>
             <canvas id="launchDailyChart" height="220"></canvas>
           </article>
+          <article class="chart-card launch-chart-card">
+            <h3>Pares acumulados</h3>
+            <canvas id="launchItemsCurveChart" height="220"></canvas>
+          </article>
+          <article class="chart-card launch-chart-card">
+            <h3>Multiplicador de aceleracao</h3>
+            <canvas id="launchMultiplierChart" height="220"></canvas>
+          </article>
+          <article class="chart-card launch-chart-card">
+            <h3>Mix de produto</h3>
+            <canvas id="launchMixChart" height="220"></canvas>
+          </article>
+          <article class="chart-card launch-chart-card">
+            <h3>Faturamento por semana</h3>
+            <canvas id="launchWeeklyRevenueChart" height="220"></canvas>
+          </article>
         </section>
 
         <section class="launch-intelligence-grid" aria-label="Leituras executivas de lancamento">
@@ -608,6 +628,35 @@
             <div id="launchChannelBreakdown" class="launch-channel-breakdown"></div>
           </article>
         </section>
+
+        <section id="launchWindowMatrixPanel" class="launch-comparison-panel" aria-label="Comparativo por janela">
+          <div class="section-heading launch-comparison-heading">
+            <div>
+              <span class="eyebrow">Janelas</span>
+              <h2>15d, 30d e 90d por modelo</h2>
+            </div>
+            <span class="comparison-badge">Modelo x janela</span>
+          </div>
+          <div class="table-wrap launch-window-matrix-wrap">
+            <table class="launch-window-matrix-table">
+              <thead>
+                <tr>
+                  <th>Modelo</th>
+                  <th>Janela</th>
+                  <th class="numeric-cell">Receita</th>
+                  <th class="numeric-cell">Pares</th>
+                  <th class="numeric-cell">Ticket/par</th>
+                  <th class="numeric-cell">Ticket/pedido</th>
+                  <th class="numeric-cell">% novos</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="launchWindowMatrixTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="launchProjectionPanel" class="launch-projection-panel" aria-label="Projecao de cenarios"></section>
 
         <section class="launch-detail-grid" aria-label="Detalhes da análise de lançamento">
           <article class="launch-detail-panel">

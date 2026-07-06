@@ -652,6 +652,9 @@ function normalizeLaunchModelConfigList(rows = []) {
     .map((row) => {
       const modelName = cleanLaunchText(row.modelo || row.model || row.nome_modelo || row.nome || row.linha || "");
       const modelId = cleanLaunchText(row.modelo_id || row.model_id || modelName);
+      const officialLaunchDate = normalizeDateKey(row.data_oficial || row.lancamento_oficial || row.official_launch_date || "");
+      const dayZeroBase = normalizeDateKey(row.day_zero_base || row.data_base || row.data_lancamento_base || "");
+      const launchDate = dayZeroBase || normalizeDateKey(row.data_lancamento || row.launch_date || row.data_inicio || row.data);
       const searchTerms = [
         modelName,
         row.linha,
@@ -667,10 +670,13 @@ function normalizeLaunchModelConfigList(rows = []) {
         modelo_id: modelId,
         modelo: modelName,
         model_key: slug(modelId || modelName),
-        data_lancamento: normalizeDateKey(row.data_lancamento || row.launch_date || row.data_inicio || row.data),
+        data_lancamento: launchDate,
+        data_oficial: officialLaunchDate,
+        day_zero_base: dayZeroBase || launchDate,
         linha: cleanLaunchText(row.linha || ""),
         topico: cleanLaunchText(row.topico || row.categoria || row.tipo || ""),
         termos_busca: [...new Set(searchTerms)],
+        confiabilidade: cleanLaunchText(row.confiabilidade || row.reliability || ""),
         status: cleanLaunchText(row.status || "Ativo"),
         observacao: cleanLaunchText(row.observacao || row.obs || ""),
       };
@@ -1614,6 +1620,8 @@ function renderLaunchWorkbench() {
   if (!root || root.hidden) return;
   const analysis = buildLaunchWorkbenchAnalysis();
   renderLaunchInsight(analysis);
+  renderLaunchMethodology(analysis);
+  renderLaunchHero(analysis);
   renderLaunchMetricGrid(analysis);
   renderLaunchComparison(analysis);
   renderLaunchProductCards(analysis);
@@ -1621,6 +1629,8 @@ function renderLaunchWorkbench() {
   renderLaunchAcceleration(analysis);
   renderLaunchSeasonality(analysis);
   renderLaunchChannelBreakdown(analysis);
+  renderLaunchWindowMatrix(analysis);
+  renderLaunchProjection(analysis);
   renderLaunchWindowCards(analysis);
   renderLaunchProductTable(analysis);
   renderLaunchMediaGrid(analysis);
@@ -1636,6 +1646,8 @@ function buildLaunchWorkbenchAnalysis() {
   const comparisonProducts = resolveLaunchComparisonProducts(products, selectedProducts);
   const productWindows = buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbackLaunchDate);
   const comparisonWindows = buildLaunchProductWindows(comparisonProducts, windowDays, cutoff, fallbackLaunchDate);
+  const benchmarkProducts = products.filter((product) => product.config || product.launchDate || state.launch.productKeys.includes(product.key));
+  const benchmarkWindows = buildLaunchProductWindows(benchmarkProducts, 90, cutoff, fallbackLaunchDate);
   const launchDate = productWindows[0]?.launchDate || fallbackLaunchDate;
   const plannedEnd = maxDateKey(productWindows.map((item) => item.plannedEnd)) || addDays(launchDate, windowDays - 1);
   const actualEnd = maxDateKey(productWindows.map((item) => item.actualEnd)) || plannedEnd;
@@ -1656,6 +1668,11 @@ function buildLaunchWorkbenchAnalysis() {
   const seasonality = summarizeLaunchSeasonality(productWindows);
   const comparison = buildLaunchComparisonRows(comparisonWindows);
   const dataSource = getLaunchProductSourceMeta();
+  const methodology = buildLaunchMethodology(productWindows, selectedProducts, dataSource);
+  const hero = buildLaunchHero(productWindows, benchmarkWindows);
+  const windowMatrix = buildLaunchWindowMatrix(comparisonWindows);
+  const projection = buildLaunchProjection(productWindows, benchmarkWindows);
+  const generatedInsights = buildLaunchGeneratedInsights({ hero, projection, comparison, media, productSummary, metrics, methodology });
 
   return {
     launchEvent,
@@ -1683,6 +1700,11 @@ function buildLaunchWorkbenchAnalysis() {
     seasonality,
     comparison,
     dataSource,
+    methodology,
+    hero,
+    windowMatrix,
+    projection,
+    generatedInsights,
     revenueVariation: calculateVariation(productSummary.revenue, baselineProductSummary.revenue),
     contextRevenueVariation: calculateVariation(metrics.receita_total, baselineMetrics.receita_total),
   };
@@ -1700,6 +1722,7 @@ function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbac
       product,
       productKey: product.key,
       launchDate,
+      registeredLaunchDate: launchWindowStart.registeredLaunchDate,
       officialLaunchDate: launchWindowStart.officialLaunchDate,
       firstCapturedDate: launchWindowStart.firstCapturedDate,
       launchDateAdjusted: launchWindowStart.adjusted,
@@ -1713,21 +1736,23 @@ function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbac
 }
 
 function resolveLaunchWindowStart(product = {}, fallbackLaunchDate = "") {
-  const officialLaunchDate = product.launchDate || "";
+  const registeredLaunchDate = product.launchDate || "";
+  const officialLaunchDate = product.officialLaunchDate || registeredLaunchDate;
   const firstCapturedDate = product.firstDate && (product.revenue || product.items) ? product.firstDate : "";
   const hasFullLaunchRows = !getLaunchProductSourceMeta().isFallback;
   const adjusted = Boolean(
     hasFullLaunchRows &&
-      officialLaunchDate &&
+      registeredLaunchDate &&
       firstCapturedDate &&
-      firstCapturedDate > officialLaunchDate
+      firstCapturedDate > registeredLaunchDate
   );
 
   return {
+    registeredLaunchDate,
     officialLaunchDate,
     firstCapturedDate,
     adjusted,
-    launchDate: adjusted ? firstCapturedDate : officialLaunchDate || firstCapturedDate || fallbackLaunchDate,
+    launchDate: adjusted ? firstCapturedDate : registeredLaunchDate || firstCapturedDate || officialLaunchDate || fallbackLaunchDate,
   };
 }
 
@@ -1800,6 +1825,322 @@ function buildLaunchComparisonRows(productWindows) {
       };
     })
     .sort((a, b) => Number(b.isSelected) - Number(a.isSelected) || b.d90Revenue - a.d90Revenue || b.totalItems - a.totalItems);
+}
+
+function buildLaunchMethodology(productWindows, selectedProducts, dataSource) {
+  const rows = productWindows.map((window) => {
+    const dayZeroDate = window.registeredLaunchDate || window.launchDate || "";
+    const gapDays =
+      window.officialLaunchDate && window.firstCapturedDate
+        ? Math.max(0, daysBetweenDateKeys(window.officialLaunchDate, window.firstCapturedDate))
+        : null;
+    const coverageGapDays =
+      dayZeroDate && window.firstCapturedDate ? Math.max(0, daysBetweenDateKeys(dayZeroDate, window.firstCapturedDate)) : null;
+    return {
+      key: window.productKey,
+      name: window.product?.name || window.productKey,
+      officialLaunchDate: window.officialLaunchDate,
+      dayZeroDate,
+      firstCapturedDate: window.firstCapturedDate,
+      effectiveLaunchDate: window.launchDate,
+      gapDays,
+      coverageGapDays,
+      reliability: window.product?.config?.confiabilidade || classifyLaunchReliability(coverageGapDays, window.firstCapturedDate),
+      adjusted: window.launchDateAdjusted,
+    };
+  });
+  const launchRows = getLaunchProductRows();
+  const hasCustomerFlag = launchRows.some((row) => Object.prototype.hasOwnProperty.call(row, "cliente_novo"));
+  const hasOrderIdentity = launchRows.some((row) =>
+    ["pedido_id", "order_id", "order_name", "source_order_id"].some((field) => row[field])
+  );
+  const alerts = [];
+
+  rows
+    .filter((row) => row.coverageGapDays > 0)
+    .forEach((row) => {
+      alerts.push({
+        level: "warning",
+        title: `${row.name}: gap de cobertura de ${formatInteger(row.coverageGapDays)} dia(s)`,
+        detail: `D0 planilha ${formatShortDate(row.dayZeroDate)}; primeira venda na base ${formatShortDate(row.firstCapturedDate)}.`,
+      });
+    });
+  if (!hasCustomerFlag) {
+    alerts.push({
+      level: "warning",
+      title: "Cliente novo indisponivel por pedido",
+      detail: "O JSON atual nao traz cliente_novo por pedido; % novos fica sinalizado como lacuna metodologica.",
+    });
+  }
+  if (!hasOrderIdentity) {
+    alerts.push({
+      level: "warning",
+      title: "Pedido por modelo indisponivel",
+      detail: "A base de SKU/dia nao possui order_id/pedido_id; ticket medio por pedido usa apenas contexto geral quando exibido.",
+    });
+  }
+  if (dataSource?.isFallback) {
+    alerts.push({
+      level: "critical",
+      title: "Fonte parcial de produto",
+      detail: "Sem lancamentos_produtos_dia.json completo, os dias sem linha nao podem ser interpretados como venda zero.",
+    });
+  }
+  if (!state.data.lancamentosInvestimentos?.length) {
+    alerts.push({
+      level: "warning",
+      title: "Investimentos de lancamento vazios",
+      detail: "Midia e CRM aparecem como leitura incompleta ate a planilha de investimentos/disparos ser preenchida.",
+    });
+  }
+  if (!selectedProducts.length) {
+    alerts.push({
+      level: "neutral",
+      title: "Nenhum modelo selecionado",
+      detail: "Selecione ao menos um modelo para calcular janelas, curvas e projecoes.",
+    });
+  }
+
+  return {
+    rows,
+    alerts,
+    hasCustomerFlag,
+    hasOrderIdentity,
+  };
+}
+
+function classifyLaunchReliability(gapDays, firstCapturedDate) {
+  if (!firstCapturedDate) return "Sem venda capturada";
+  if (gapDays === 0) return "Confiavel";
+  if (gapDays > 0) return "Traction consolidada";
+  return "Em validacao";
+}
+
+function buildLaunchHero(productWindows, benchmarkWindows) {
+  const currentWindow = [...productWindows]
+    .filter((window) => window.productKey)
+    .sort((a, b) => String(b.officialLaunchDate || b.launchDate || "").localeCompare(String(a.officialLaunchDate || a.launchDate || "")))[0];
+  if (!currentWindow) return null;
+
+  const current = summarizeLaunchWindowFacts(currentWindow, 30);
+  const referenceWindow = findPreviousCompleteLaunchWindow(currentWindow, benchmarkWindows, 30);
+  const reference = referenceWindow ? summarizeLaunchWindowFacts(referenceWindow, 30) : null;
+  const cards = [
+    buildLaunchHeroCard("Faturamento 30d", current.revenue, reference?.revenue, formatCurrency),
+    buildLaunchHeroCard("Pares 30d", current.items, reference?.items, formatInteger),
+    buildLaunchHeroCard("Velocidade diaria", current.dailyRevenue, reference?.dailyRevenue, formatCurrency),
+    buildLaunchHeroCard("Ticket por par", current.ticketPerItem, reference?.ticketPerItem, formatCurrency),
+    buildLaunchHeroCard("Pedidos 30d", current.productOrders, reference?.productOrders, formatInteger, current.hasProductOrders),
+    buildLaunchHeroCard("% clientes novos", current.newCustomerShare, reference?.newCustomerShare, formatPercent, current.hasNewCustomerData),
+  ];
+
+  return {
+    currentWindow,
+    referenceWindow,
+    current,
+    reference,
+    cards,
+  };
+}
+
+function buildLaunchHeroCard(label, value, referenceValue, formatter, available = true) {
+  if (!available || value === null || value === undefined) {
+    return { label, value: "-", delta: "Dado ausente no JSON atual", status: "missing" };
+  }
+  const variation = referenceValue === null || referenceValue === undefined ? null : calculateVariation(value, referenceValue);
+  return {
+    label,
+    value: formatter(value),
+    delta: variation ? `${variation.label} vs lancamento anterior` : "Sem benchmark completo anterior",
+    status: variation?.direction || "neutral",
+  };
+}
+
+function findPreviousCompleteLaunchWindow(currentWindow, benchmarkWindows, minDays = 30) {
+  const currentDate = currentWindow.officialLaunchDate || currentWindow.launchDate || "";
+  return [...benchmarkWindows]
+    .filter((window) => window.productKey !== currentWindow.productKey)
+    .filter((window) => (window.officialLaunchDate || window.launchDate || "") < currentDate)
+    .filter((window) => !window.launchDateAdjusted)
+    .filter((window) => window.actualKeys.length >= minDays)
+    .filter((window) => summarizeLaunchWindowFacts(window, minDays).revenue > 0)
+    .sort((a, b) => String(b.officialLaunchDate || b.launchDate || "").localeCompare(String(a.officialLaunchDate || a.launchDate || "")))[0] || null;
+}
+
+function buildLaunchWindowMatrix(productWindows) {
+  return productWindows.flatMap((window) =>
+    [15, 30, 90].map((days) => {
+      const facts = summarizeLaunchWindowFacts(window, days);
+      return {
+        key: `${window.productKey}-${days}`,
+        model: window.product?.name || window.productKey,
+        label: `${days}d`,
+        days,
+        complete: window.actualKeys.length >= days,
+        adjusted: window.launchDateAdjusted,
+        ...facts,
+      };
+    })
+  );
+}
+
+function buildLaunchProjection(productWindows, benchmarkWindows) {
+  const currentWindow = [...productWindows]
+    .filter((window) => window.productKey)
+    .sort((a, b) => String(b.officialLaunchDate || b.launchDate || "").localeCompare(String(a.officialLaunchDate || a.launchDate || "")))[0];
+  if (!currentWindow) {
+    return { available: false, reason: "Selecione um modelo para projetar cenarios.", scenarios: [], benchmarks: [] };
+  }
+
+  const current30 = summarizeLaunchWindowFacts(currentWindow, 30);
+  const current15 = summarizeLaunchWindowFacts(currentWindow, 15);
+  const sourceDays = currentWindow.actualKeys.length >= 30 && current30.revenue > 0 ? 30 : 15;
+  const source = sourceDays === 30 ? current30 : current15;
+  const benchmarks = benchmarkWindows
+    .filter((window) => window.productKey !== currentWindow.productKey)
+    .filter((window) => !window.launchDateAdjusted)
+    .filter((window) => window.actualKeys.length >= 90)
+    .map((window) => {
+      const base = summarizeLaunchWindowFacts(window, sourceDays);
+      const d90 = summarizeLaunchWindowFacts(window, 90);
+      return {
+        model: window.product?.name || window.productKey,
+        multiplier: safeDivide(d90.revenue, base.revenue),
+        itemMultiplier: safeDivide(d90.items, base.items),
+      };
+    })
+    .filter((row) => row.multiplier > 0);
+
+  if (!source.revenue || !benchmarks.length) {
+    return {
+      available: false,
+      reason: benchmarks.length
+        ? "Ainda nao ha faturamento suficiente na janela atual."
+        : "Aguardando ao menos um benchmark limpo com janela D+90 completa.",
+      sourceDays,
+      source,
+      scenarios: [],
+      benchmarks,
+    };
+  }
+
+  const multipliers = benchmarks.map((row) => row.multiplier).sort((a, b) => a - b);
+  const itemMultipliers = benchmarks.map((row) => row.itemMultiplier).filter((value) => value > 0).sort((a, b) => a - b);
+  const average = multipliers.reduce((sum, value) => sum + value, 0) / multipliers.length;
+  const itemAverage = itemMultipliers.length ? itemMultipliers.reduce((sum, value) => sum + value, 0) / itemMultipliers.length : average;
+  const scenarioDefs = [
+    ["Conservador", multipliers[0], itemMultipliers[0] || itemAverage],
+    ["Base / target", average, itemAverage],
+    ["Otimista", multipliers[multipliers.length - 1], itemMultipliers[itemMultipliers.length - 1] || itemAverage],
+  ];
+
+  return {
+    available: true,
+    sourceDays,
+    source,
+    benchmarks,
+    scenarios: scenarioDefs.map(([label, multiplier, itemMultiplier]) => ({
+      label,
+      multiplier,
+      revenue: source.revenue * multiplier,
+      items: source.items * itemMultiplier,
+    })),
+  };
+}
+
+function buildLaunchGeneratedInsights({ hero, projection, comparison, media, productSummary, metrics, methodology }) {
+  const insights = [];
+  const currentName = hero?.currentWindow?.product?.name || "Modelo selecionado";
+  const revenueCard = hero?.cards?.find((card) => card.label === "Faturamento 30d");
+  const ticketCard = hero?.cards?.find((card) => card.label === "Ticket por par");
+  if (revenueCard && revenueCard.status !== "missing") {
+    insights.push(`${currentName}: faturamento 30d em ${revenueCard.value}; ${revenueCard.delta.toLowerCase()}.`);
+  }
+  if (ticketCard && ticketCard.status !== "missing") {
+    insights.push(`Ticket por par em ${ticketCard.value}; use isso separado do ticket por pedido para nao distorcer compras multi-par.`);
+  }
+  const adjustedModels = methodology?.rows?.filter((row) => row.adjusted) || [];
+  if (adjustedModels.length) {
+    insights.push(`${adjustedModels.length} modelo(s) usam D0 SSOT por gap entre data oficial e primeira venda capturada.`);
+  }
+  if (projection?.available) {
+    const target = projection.scenarios.find((scenario) => scenario.label === "Base / target");
+    insights.push(`Cenario base projeta ${formatCurrency(target.revenue)} ate D+90 usando multiplicadores historicos limpos.`);
+  } else if (projection?.reason) {
+    insights.push(`Projecao D+90 indisponivel: ${projection.reason}`);
+  }
+  if (!media?.attributedRevenue) {
+    insights.push("Midia/CRM sem receita atribuida suficiente na janela; interpretar ROAS como lacuna de tracking, nao como zero real.");
+  }
+  if (safeDivide(productSummary.items, metrics.pedidos_aprovados) > 1) {
+    insights.push(`Pares por pedido acima de 1 (${formatRatio(safeDivide(productSummary.items, metrics.pedidos_aprovados))}), sinal de compra com multiplos pares no periodo.`);
+  }
+  return insights.slice(0, 5);
+}
+
+function summarizeLaunchWindowFacts(window, days) {
+  const keys = (window.actualKeys || []).slice(0, Math.max(0, days));
+  const rows = filterProductRowsByKeys(keys, [window.productKey]);
+  const summary = summarizeLaunchWorkbenchProducts(rows, [window.product]);
+  const metrics = getMetricSummary(keys);
+  const productOrders = deriveLaunchProductOrders(rows);
+  const newCustomerShare = deriveLaunchNewCustomerShare(rows);
+  const ticketOrderDenominator = productOrders.value || 0;
+  return {
+    ...summary,
+    keys,
+    rows,
+    metrics,
+    capturedRows: rows.length,
+    productOrders: productOrders.value,
+    hasProductOrders: productOrders.available,
+    newCustomerShare: newCustomerShare.value,
+    hasNewCustomerData: newCustomerShare.available,
+    ticketPerItem: safeDivide(summary.revenue, summary.items),
+    ticketPerOrder: ticketOrderDenominator ? safeDivide(summary.revenue, ticketOrderDenominator) : null,
+    pairsPerOrder: ticketOrderDenominator ? safeDivide(summary.items, ticketOrderDenominator) : null,
+    contextTicket: safeDivide(summary.revenue, metrics.pedidos_aprovados),
+    contextPairsPerOrder: safeDivide(summary.items, metrics.pedidos_aprovados),
+    dailyRevenue: safeDivide(summary.revenue, keys.length),
+  };
+}
+
+function deriveLaunchProductOrders(rows = []) {
+  const orderFields = ["pedido_id", "order_id", "order_name", "source_order_id"];
+  const ids = new Set();
+  rows.forEach((row) => {
+    orderFields.forEach((field) => {
+      if (row[field]) ids.add(String(row[field]));
+    });
+  });
+  if (ids.size) return { available: true, value: ids.size };
+
+  const orderRows = rows.filter((row) => row.pedidos || row.pedidos_aprovados || row.orders);
+  if (orderRows.length) {
+    return {
+      available: true,
+      value: orderRows.reduce((sum, row) => sum + Number(row.pedidos || row.pedidos_aprovados || row.orders || 0), 0),
+    };
+  }
+  return { available: false, value: null };
+}
+
+function deriveLaunchNewCustomerShare(rows = []) {
+  if (!rows.some((row) => Object.prototype.hasOwnProperty.call(row, "cliente_novo"))) {
+    return { available: false, value: null };
+  }
+  const orderMap = new Map();
+  rows.forEach((row) => {
+    const key = row.pedido_id || row.order_id || row.order_name || row.source_order_id || `${row.data}-${row.sku}-${row.cliente_novo}`;
+    const current = orderMap.get(key) || { total: 0, newCustomers: 0 };
+    current.total += 1;
+    if (row.cliente_novo === true || row.cliente_novo === "true" || row.cliente_novo === 1 || row.cliente_novo === "1") {
+      current.newCustomers = 1;
+    }
+    orderMap.set(key, current);
+  });
+  const orders = [...orderMap.values()];
+  return { available: true, value: safeDivide(orders.reduce((sum, item) => sum + item.newCustomers, 0), orders.length) };
 }
 
 function summarizeLaunchProductWindow(window, days) {
@@ -1880,6 +2221,89 @@ function renderLaunchInsight(analysis) {
   target.innerHTML = `
     <strong>${escapeHtml(eventName)} · ${escapeHtml(productLabel)}</strong>
     <span>Janela analisada: ${actualText}.${relativeNote}${adjustedNote} Modelo vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.${sourceNote}</span>
+    ${
+      analysis.generatedInsights?.length
+        ? `<ul>${analysis.generatedInsights.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
+        : ""
+    }
+  `;
+}
+
+function renderLaunchMethodology(analysis) {
+  const target = document.getElementById("launchMethodologyPanel");
+  if (!target) return;
+  const rows = analysis.methodology?.rows || [];
+  const alerts = analysis.methodology?.alerts || [];
+  const rowHtml = rows
+    .map(
+      (row) => `
+        <article class="launch-method-card ${row.adjusted ? "is-warning" : ""}">
+          <span>${escapeHtml(row.reliability)}</span>
+          <strong>${escapeHtml(row.name)}</strong>
+          <small>Oficial ${row.officialLaunchDate ? formatShortDate(row.officialLaunchDate) : "-"} · D0 ${
+            row.dayZeroDate ? formatShortDate(row.dayZeroDate) : "-"
+          } · Base ${
+            row.firstCapturedDate ? formatShortDate(row.firstCapturedDate) : "-"
+          } · Gap ${row.coverageGapDays === null ? "-" : `${formatInteger(row.coverageGapDays)}d`}</small>
+        </article>
+      `
+    )
+    .join("");
+  const alertHtml = alerts
+    .slice(0, 5)
+    .map(
+      (alert) => `
+        <li class="launch-method-alert-${escapeHtml(alert.level)}">
+          <strong>${escapeHtml(alert.title)}</strong>
+          <span>${escapeHtml(alert.detail)}</span>
+        </li>
+      `
+    )
+    .join("");
+
+  target.innerHTML = `
+    <div class="section-heading launch-method-heading">
+      <div>
+        <span class="eyebrow">Metodologia</span>
+        <h2>Confiabilidade e limites da leitura</h2>
+      </div>
+      <span class="comparison-badge">${escapeHtml(analysis.dataSource?.label || "fonte nao identificada")}</span>
+    </div>
+    <div class="launch-method-grid">${rowHtml || `<p class="launch-intelligence-empty">Selecione modelos para calcular confiabilidade.</p>`}</div>
+    <ul class="launch-method-alerts">${alertHtml}</ul>
+  `;
+}
+
+function renderLaunchHero(analysis) {
+  const target = document.getElementById("launchHeroPanel");
+  if (!target) return;
+  const hero = analysis.hero;
+  if (!hero) {
+    target.innerHTML = "";
+    return;
+  }
+  const currentName = hero.currentWindow?.product?.name || "Modelo selecionado";
+  const referenceName = hero.referenceWindow?.product?.name || "sem benchmark completo";
+
+  target.innerHTML = `
+    <div class="launch-hero-copy">
+      <span class="eyebrow">Destaque 30d</span>
+      <h2>${escapeHtml(currentName)}</h2>
+      <p>Comparado contra ${escapeHtml(referenceName)}. Quando pedido, cliente novo ou CRM nao existem no JSON, o card fica sinalizado como lacuna.</p>
+    </div>
+    <div class="launch-hero-grid">
+      ${hero.cards
+        .map(
+          (card) => `
+            <article class="launch-hero-card launch-hero-${slug(card.status || "neutral")}">
+              <span>${escapeHtml(card.label)}</span>
+              <strong>${escapeHtml(card.value)}</strong>
+              <small>${escapeHtml(card.delta)}</small>
+            </article>
+          `
+        )
+        .join("")}
+    </div>
   `;
 }
 
@@ -1897,6 +2321,8 @@ function renderLaunchMetricGrid(analysis) {
   const topColor = analysis.productSummary.byColor?.[0] || null;
   const topSize = analysis.productSummary.bySize?.[0] || null;
   const pairsPerOrder = safeDivide(analysis.productSummary.items, analysis.metrics.pedidos_aprovados);
+  const hasLaunchCustomerFlag = Boolean(analysis.methodology?.hasCustomerFlag);
+  const hasLaunchOrderIdentity = Boolean(analysis.methodology?.hasOrderIdentity);
   const cards = [
     [
       "Tenis mais vendido",
@@ -1918,8 +2344,18 @@ function renderLaunchMetricGrid(analysis) {
     ["Faturamento geral", formatCurrency(analysis.metrics.receita_total), variationBadge(analysis.contextRevenueVariation)],
     ["Pedidos", formatInteger(analysis.metrics.pedidos_aprovados), `Ticket ${formatCurrency(analysis.metrics.ticket_medio)}`],
     ["Conversão", formatPercent(analysis.metrics.taxa_conversao), `${formatInteger(analysis.metrics.sessoes)} sessões`],
-    ["Clientes novos", formatPercent(newShare), `${formatInteger(analysis.metrics.clientes_novos)} clientes`],
-    ["Pares por pedido", formatRatio(pairsPerOrder), `${formatInteger(analysis.productSummary.items)} itens / ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos`],
+    [
+      "Clientes novos",
+      hasLaunchCustomerFlag ? formatPercent(newShare) : "-",
+      hasLaunchCustomerFlag ? `${formatInteger(analysis.metrics.clientes_novos)} clientes` : "cliente_novo ausente no JSON do lancamento",
+    ],
+    [
+      "Pares por pedido",
+      hasLaunchOrderIdentity ? formatRatio(pairsPerOrder) : "-",
+      hasLaunchOrderIdentity
+        ? `${formatInteger(analysis.productSummary.items)} itens / ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos`
+        : "order_id ausente; nao calcular como real",
+    ],
     ["Investimento", formatCurrency(analysis.media.investment), `${formatDecimal(analysis.media.ordersPer1k)} pedidos / R$1k`],
     ["ROAS / CPA", `${formatRoas(analysis.media.roas)} · ${formatCurrency(analysis.media.cpa)}`, `${formatCurrency(analysis.media.attributedRevenue)} UTM`],
     ["Fonte da curva", analysis.dataSource?.label || "-", analysis.dataSource?.isFallback ? "Atualize o Apps Script para fechar os buracos" : "SKU/dia completo para lancamentos"],
@@ -2131,6 +2567,10 @@ function renderLaunchCurves(analysis) {
     ],
     formatInteger
   );
+  renderChart("launchItemsCurveChart", labels, analysis.curve.itemSeries, formatInteger);
+  renderChart("launchMultiplierChart", labels, analysis.curve.multiplierSeries, formatRoas);
+  renderChart("launchMixChart", analysis.curve.weekLabels, analysis.curve.mixSeries, formatPercent);
+  renderChart("launchWeeklyRevenueChart", analysis.curve.weekLabels, analysis.curve.weeklyRevenueSeries, formatCurrency);
 }
 
 function renderLaunchAcceleration(analysis) {
@@ -2192,8 +2632,15 @@ function renderLaunchChannelBreakdown(analysis) {
     cpa: analysis.media.cpa,
   };
   const pairsPerOrder = safeDivide(analysis.productSummary.items, analysis.metrics.pedidos_aprovados);
+  const hasLaunchOrderIdentity = Boolean(analysis.methodology?.hasOrderIdentity);
   const kpis = [
-    ["Pares por pedido", formatRatio(pairsPerOrder), `${formatInteger(analysis.productSummary.items)} itens / ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos`],
+    [
+      "Pares por pedido",
+      hasLaunchOrderIdentity ? formatRatio(pairsPerOrder) : "-",
+      hasLaunchOrderIdentity
+        ? `${formatInteger(analysis.productSummary.items)} itens / ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos`
+        : "order_id ausente no SKU/dia",
+    ],
     ["CRM receita", formatCurrency(crm.revenue), `${formatInteger(crm.orders)} pedido(s) por UTM CRM`],
     ["CRM conversao", crm.conversionProxy ? formatPercent(crm.conversionProxy) : "-", "Proxy por clique/impressao quando existir"],
     ["Midia paga", formatRoas(paid.roas), `${formatCurrency(paid.investment || 0)} investido`],
@@ -2228,6 +2675,69 @@ function renderLaunchChannelBreakdown(analysis) {
     <div class="launch-channel-list">
       ${channelHtml || `<p class="launch-intelligence-empty">Sem UTM atribuida na janela.</p>`}
     </div>
+  `;
+}
+
+function renderLaunchWindowMatrix(analysis) {
+  const body = document.getElementById("launchWindowMatrixTable");
+  if (!body) return;
+  const rows = analysis.windowMatrix || [];
+  body.innerHTML =
+    rows
+      .map((row) => {
+        const ticketOrder = row.hasProductOrders ? formatCurrency(row.ticketPerOrder) : "Sem pedido";
+        const newShare = row.hasNewCustomerData ? formatPercent(row.newCustomerShare) : "Sem campo";
+        const status = row.adjusted
+          ? `<span class="status-chip warning">D0 SSOT</span>`
+          : row.complete
+            ? `<span class="status-chip success">Completa</span>`
+            : `<span class="status-chip warning">Parcial</span>`;
+        return `
+          <tr>
+            <td><strong>${escapeHtml(row.model)}</strong></td>
+            <td>${escapeHtml(row.label)}</td>
+            <td class="numeric-cell">${formatCurrency(row.revenue)}</td>
+            <td class="numeric-cell">${formatInteger(row.items)}</td>
+            <td class="numeric-cell">${formatCurrency(row.ticketPerItem)}</td>
+            <td class="numeric-cell">${ticketOrder}</td>
+            <td class="numeric-cell">${newShare}</td>
+            <td>${status}</td>
+          </tr>
+        `;
+      })
+      .join("") || emptyTableRow(8);
+}
+
+function renderLaunchProjection(analysis) {
+  const target = document.getElementById("launchProjectionPanel");
+  if (!target) return;
+  const projection = analysis.projection || {};
+  const scenarioHtml = projection.available
+    ? projection.scenarios
+        .map(
+          (scenario) => `
+            <article class="launch-projection-card">
+              <span>${escapeHtml(scenario.label)}</span>
+              <strong>${formatCurrency(scenario.revenue)}</strong>
+              <small>${formatInteger(scenario.items)} pares estimados · multiplicador ${formatDecimal(scenario.multiplier)}x</small>
+            </article>
+          `
+        )
+        .join("")
+    : `<p class="launch-intelligence-empty">${escapeHtml(projection.reason || "Sem dados suficientes para projetar.")}</p>`;
+  const benchmarkText = projection.benchmarks?.length
+    ? `${formatInteger(projection.benchmarks.length)} benchmark(s) limpo(s)`
+    : "Sem benchmark D+90 completo";
+
+  target.innerHTML = `
+    <div class="section-heading launch-comparison-heading">
+      <div>
+        <span class="eyebrow">Projecao</span>
+        <h2>Cenarios a partir de D+${Math.max(0, Number(projection.sourceDays || 0) - 1)}</h2>
+      </div>
+      <span class="comparison-badge">${escapeHtml(benchmarkText)}</span>
+    </div>
+    <div class="launch-projection-grid">${scenarioHtml}</div>
   `;
 }
 
@@ -2386,6 +2896,7 @@ function collectLaunchProducts() {
       name: identity.name,
       topic: identity.topic || inferLaunchProductTopic(row, identity.name),
       launchDate: identity.config?.data_lancamento || "",
+      officialLaunchDate: identity.config?.data_oficial || identity.config?.data_lancamento || "",
       config: identity.config || null,
       firstDate: row.data || "",
       lastDate: row.data || "",
@@ -2400,6 +2911,7 @@ function collectLaunchProducts() {
     current.name = current.name || identity.name;
     current.topic = current.topic || identity.topic || inferLaunchProductTopic(row, identity.name);
     current.launchDate = current.launchDate || identity.config?.data_lancamento || "";
+    current.officialLaunchDate = current.officialLaunchDate || identity.config?.data_oficial || identity.config?.data_lancamento || "";
     current.firstDate = !current.firstDate || row.data < current.firstDate ? row.data : current.firstDate;
     current.lastDate = !current.lastDate || row.data > current.lastDate ? row.data : current.lastDate;
     current.revenue += Number(row.receita_produto || 0);
@@ -2421,6 +2933,7 @@ function collectLaunchProducts() {
       name: configuredModel.name,
       topic: config.topico || inferLaunchProductTopic({}, config.modelo),
       launchDate: config.data_lancamento || "",
+      officialLaunchDate: config.data_oficial || config.data_lancamento || "",
       config,
       firstDate: config.data_lancamento || "",
       lastDate: config.data_lancamento || "",
@@ -2995,7 +3508,122 @@ function buildLaunchCurve(productWindows, selectedProducts) {
       }),
     };
   });
-  return { labels, dailyItems, dailyOrders, revenueSeries, sourceGap };
+  const itemSeries = buildLaunchCumulativeSeries(productWindows, selectedProducts, labels, "itens_vendidos", sourceGap);
+  const multiplierSeries = buildLaunchMultiplierSeries(productWindows, selectedProducts, labels, sourceGap);
+  const weekly = buildLaunchWeeklyCurveSeries(productWindows, selectedProducts, sourceGap);
+  return {
+    labels,
+    dailyItems,
+    dailyOrders,
+    revenueSeries,
+    itemSeries,
+    multiplierSeries,
+    weekLabels: weekly.labels,
+    mixSeries: weekly.mixSeries,
+    weeklyRevenueSeries: weekly.revenueSeries,
+    sourceGap,
+  };
+}
+
+function buildLaunchCumulativeSeries(productWindows, selectedProducts, labels, field, sourceGap) {
+  return selectedProducts.slice(0, 6).map((product, index) => {
+    let cumulative = 0;
+    const productWindow = productWindows.find((window) => window.productKey === product.key);
+    return {
+      label: product.name,
+      color: launchChartColor(index),
+      fill: false,
+      values: labels.map((_, dayIndex) => {
+        const dateKey = productWindow?.actualKeys[dayIndex];
+        if (!dateKey) return null;
+        const rows = filterProductRowsByKeys([dateKey], [product.key]);
+        if (sourceGap && !rows.length) return null;
+        cumulative += rows.reduce((sum, row) => sum + Number(row[field] || 0), 0);
+        return cumulative;
+      }),
+      data: labels.map((_, dayIndex) => {
+        const dateKey = productWindow?.actualKeys[dayIndex];
+        if (!dateKey) return null;
+        const rows = filterProductRowsByKeys([dateKey], [product.key]);
+        if (sourceGap && !rows.length) return null;
+        return rows.reduce((sum, row) => sum + Number(row[field] || 0), 0);
+      }),
+    };
+  }).map((series) => {
+    let cumulative = 0;
+    return {
+      label: series.label,
+      color: series.color,
+      fill: false,
+      data: series.data.map((value) => {
+        if (value === null) return null;
+        cumulative += value;
+        return cumulative;
+      }),
+    };
+  });
+}
+
+function buildLaunchMultiplierSeries(productWindows, selectedProducts, labels, sourceGap) {
+  return selectedProducts.slice(0, 6).map((product, index) => {
+    const productWindow = productWindows.find((window) => window.productKey === product.key);
+    let cumulative = 0;
+    let base15 = 0;
+    const values = labels.map((_, dayIndex) => {
+      const dateKey = productWindow?.actualKeys[dayIndex];
+      if (!dateKey) return null;
+      const rows = filterProductRowsByKeys([dateKey], [product.key]);
+      if (sourceGap && !rows.length) return null;
+      cumulative += rows.reduce((sum, row) => sum + Number(row.receita_produto || 0), 0);
+      if (dayIndex === 14) base15 = cumulative;
+      const base = base15 || (dayIndex >= 14 ? cumulative : 0);
+      return base ? safeDivide(cumulative, base) : null;
+    });
+    return {
+      label: product.name,
+      color: launchChartColor(index),
+      fill: false,
+      data: values,
+    };
+  });
+}
+
+function buildLaunchWeeklyCurveSeries(productWindows, selectedProducts, sourceGap) {
+  const maxDays = Math.max(0, ...productWindows.map((window) => window.actualKeys.length));
+  const weekCount = Math.ceil(maxDays / 7);
+  const labels = Array.from({ length: weekCount }, (_, index) => `S${index + 1}`);
+  const weeklyValuesByProduct = selectedProducts.slice(0, 6).map((product) => {
+    const productWindow = productWindows.find((window) => window.productKey === product.key);
+    return labels.map((_, weekIndex) => {
+      const start = weekIndex * 7;
+      const keys = productWindow?.actualKeys.slice(start, start + 7) || [];
+      const rows = keys.flatMap((dateKey) => filterProductRowsByKeys([dateKey], [product.key]));
+      if (sourceGap && !rows.length) return null;
+      return rows.reduce((sum, row) => sum + Number(row.receita_produto || 0), 0);
+    });
+  });
+  const weeklyTotals = labels.map((_, weekIndex) =>
+    weeklyValuesByProduct.reduce((sum, values) => sum + Number(values[weekIndex] || 0), 0)
+  );
+  return {
+    labels,
+    revenueSeries: selectedProducts.slice(0, 6).map((product, index) => ({
+      label: product.name,
+      color: launchChartColor(index),
+      fill: false,
+      data: weeklyValuesByProduct[index] || [],
+    })),
+    mixSeries: selectedProducts.slice(0, 6).map((product, index) => ({
+      label: product.name,
+      color: launchChartColor(index),
+      fill: false,
+      data: (weeklyValuesByProduct[index] || []).map((value, weekIndex) => safeDivide(value, weeklyTotals[weekIndex])),
+    })),
+  };
+}
+
+function launchChartColor(index) {
+  return ["#1e5a49", "#b98d43", "#2d5d83", "#8b6424", "#9b3e37", "#59615d"][index % 6];
 }
 
 function getDataCutoffKey() {
@@ -3692,6 +4320,15 @@ function addDays(dateKey, amount) {
   const date = new Date(year, month - 1, day);
   date.setDate(date.getDate() + amount);
   return toDateKey(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
+
+function daysBetweenDateKeys(start, end) {
+  if (!start || !end) return 0;
+  const [startYear, startMonth, startDay] = start.split("-").map(Number);
+  const [endYear, endMonth, endDay] = end.split("-").map(Number);
+  const startDate = Date.UTC(startYear, startMonth - 1, startDay);
+  const endDate = Date.UTC(endYear, endMonth - 1, endDay);
+  return Math.round((endDate - startDate) / 86400000);
 }
 
 function currentDateKey(offset = 0) {
