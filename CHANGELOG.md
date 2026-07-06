@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.28 - 2026-07-06
+
+- Corrigido o modo local da aba de lancamentos: localhost deixa de buscar automaticamente a API de producao e passa a usar os JSONs locais quando nao houver backend local.
+- Reforcado o matching de `Monochrome` com aliases explicitos para `RS8 Avant Monochrome`, evitando ambiguidade com `Avant`.
+- Atualizado cache bust dos assets para `v=0.5.28`.
+
 ## 0.5.27 - 2026-07-06
 
 - Ajustado o comparativo de lancamentos para comparar somente modelos selecionados; referencias automaticas deixam de entrar como selecao escondida.

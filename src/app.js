@@ -103,8 +103,23 @@ const LAUNCH_MODEL_COLOR_PALETTE = [
 ];
 const CHART_FALLBACK_COLORS = ["#3D5220", "#B8923A", "#B14422", "#876A2C", "#627A31", "#7F3019"];
 
+const LAUNCH_MODEL_ALIAS_TERMS = {
+  monochrome: [
+    "RS8 Avant Monochrome",
+    "RS8Avant Monochrome",
+    "RS8AvantMonochrome",
+    "RS8 Avant Mono",
+    "RS8Avant Mono",
+    "RS8AvantMono",
+  ],
+};
+
 const LAUNCH_MODEL_PATTERNS = [
-  { pattern: /\bmonochrome\b|\brs\s*8\s*monochrome\b|\brs8monochrome\b/, name: "Monochrome" },
+  {
+    pattern:
+      /\bmonochrome\b|\brs\s*8\s*monochrome\b|\brs8monochrome\b|\brs\s*8\s*avant\s*monochrome\b|\brs8avantmonochrome\b|\brs\s*8\s*avant\s*mono\b|\brs8avantmono\b/,
+    name: "Monochrome",
+  },
   { pattern: /\bavant\b|\brs\s*[678]\s*avant\b|\brs[678]avant\b/, name: "Avant" },
   { pattern: /\bgt\b|\brs\s*[67]\s*gt\b|\brs[67]gt\b|\bknit\s*gt\b|\bknitgt\b|\b911\s*gt\b|\b911gt\b/, name: "GT" },
   { pattern: /\bphantom\b|\bphantom\s*(slip|easy|knit)\b|\bphantom(slip|easy|knit)\b/, name: "Phantom" },
@@ -438,13 +453,10 @@ function updateActiveView() {
 
 function resolveApiBase() {
   const location = window.location;
-  const hostname = location.hostname;
-  const port = location.port;
+  const params = new URLSearchParams(location.search);
 
+  if (params.get("api") === "prod") return PRODUCTION_API_BASE;
   if (location.protocol === "file:") return PRODUCTION_API_BASE;
-  if ((hostname === "localhost" || hostname === "127.0.0.1") && port !== "8765") {
-    return PRODUCTION_API_BASE;
-  }
   return "";
 }
 
@@ -694,6 +706,8 @@ function normalizeLaunchModelConfigList(rows = []) {
         row.product_key,
       ]
         .flatMap((value) => splitLaunchTerms(value || ""))
+        .concat(launchModelAliasTerms(modelName))
+        .concat(launchModelAliasTerms(modelId))
         .filter(Boolean);
       return {
         ...row,
@@ -2985,6 +2999,11 @@ function splitLaunchTerms(value = "") {
     .split(/[,;|/]+/)
     .map((item) => normalizeComparableText(item))
     .filter(Boolean);
+}
+
+function launchModelAliasTerms(modelName = "") {
+  const key = modelColorKey(modelName);
+  return (LAUNCH_MODEL_ALIAS_TERMS[key] || []).flatMap((term) => splitLaunchTerms(term));
 }
 
 function launchModelIdentity(row = {}, configs = []) {
