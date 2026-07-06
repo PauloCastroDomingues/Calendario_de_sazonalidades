@@ -1094,8 +1094,8 @@
     "view_item": 12437,
     "add_to_cart": 1035,
     "begin_checkout": 697,
-    "purchase": 132,
-    "conversion_rate": 0.009166030136796056
+    "purchase": 131,
+    "conversion_rate": 0.0090965905145476
   },
   {
     "data": "2026-05-22",
@@ -1202,8 +1202,8 @@
     "view_item": 12151,
     "add_to_cart": 981,
     "begin_checkout": 760,
-    "purchase": 169,
-    "conversion_rate": 0.012106017191977077
+    "purchase": 168,
+    "conversion_rate": 0.012034383954154728
   },
   {
     "data": "2026-06-03",
@@ -1211,8 +1211,8 @@
     "view_item": 15762,
     "add_to_cart": 924,
     "begin_checkout": 746,
-    "purchase": 146,
-    "conversion_rate": 0.008306781975421028
+    "purchase": 145,
+    "conversion_rate": 0.00824988620846609
   },
   {
     "data": "2026-06-04",
@@ -1364,8 +1364,8 @@
     "view_item": 14667,
     "add_to_cart": 714,
     "begin_checkout": 445,
-    "purchase": 103,
-    "conversion_rate": 0.006326392727719427
+    "purchase": 102,
+    "conversion_rate": 0.0062649714391007924
   },
   {
     "data": "2026-06-21",

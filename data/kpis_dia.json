@@ -9296,16 +9296,16 @@
   },
   {
     "data": "2026-05-21",
-    "receita_total": 88718.4,
-    "pedidos_aprovados": 132,
-    "ticket_medio": 672.109090909,
+    "receita_total": 88263.05,
+    "pedidos_aprovados": 131,
+    "ticket_medio": 673.763740458,
     "sessoes": 15829,
-    "taxa_conversao": 0.008339124391938846,
+    "taxa_conversao": 0.008275949207151431,
     "investimento_total_mkt": 26256.25,
-    "roas_mkt": 3.378944061,
+    "roas_mkt": 3.361601523,
     "cps_mkt": 1.658743446,
     "clientes_novos": 86,
-    "clientes_recorrentes": 46
+    "clientes_recorrentes": 45
   },
   {
     "data": "2026-05-22",
@@ -9452,16 +9452,16 @@
   },
   {
     "data": "2026-06-02",
-    "receita_total": 108991.88,
-    "pedidos_aprovados": 169,
-    "ticket_medio": 644.922366864,
+    "receita_total": 108607.29,
+    "pedidos_aprovados": 168,
+    "ticket_medio": 646.471964286,
     "sessoes": 14799,
-    "taxa_conversao": 0.011419690519629705,
+    "taxa_conversao": 0.011352118386377457,
     "investimento_total_mkt": 28376.96,
-    "roas_mkt": 3.840858217,
+    "roas_mkt": 3.827305321,
     "cps_mkt": 1.917491722,
     "clientes_novos": 119,
-    "clientes_recorrentes": 47
+    "clientes_recorrentes": 46
   },
   {
     "data": "2026-06-03",
@@ -9686,15 +9686,15 @@
   },
   {
     "data": "2026-06-20",
-    "receita_total": 69852.7,
-    "pedidos_aprovados": 103,
-    "ticket_medio": 678.181553398,
+    "receita_total": 69358.6,
+    "pedidos_aprovados": 102,
+    "ticket_medio": 679.98627451,
     "sessoes": 18109,
-    "taxa_conversao": 0.005687779557126291,
+    "taxa_conversao": 0.005632558396377492,
     "investimento_total_mkt": 35010.79,
-    "roas_mkt": 1.995176344,
+    "roas_mkt": 1.981063552,
     "cps_mkt": 1.933336463,
-    "clientes_novos": 67,
+    "clientes_novos": 66,
     "clientes_recorrentes": 36
   },
   {
@@ -9873,9 +9873,9 @@
     "ticket_medio": 692.229736842,
     "sessoes": 14313,
     "taxa_conversao": 0.010619716341787187,
-    "investimento_total_mkt": 38380.65,
-    "roas_mkt": 2.741457479,
-    "cps_mkt": 2.68152379,
+    "investimento_total_mkt": 38756.63,
+    "roas_mkt": 2.714862464,
+    "cps_mkt": 2.707792217,
     "clientes_novos": 103,
     "clientes_recorrentes": 47
   },
@@ -9886,9 +9886,9 @@
     "ticket_medio": 705.038595041,
     "sessoes": 15810,
     "taxa_conversao": 0.007653383934218849,
-    "investimento_total_mkt": 35124.98,
-    "roas_mkt": 2.428746436,
-    "cps_mkt": 2.221693865,
+    "investimento_total_mkt": 30742.77,
+    "roas_mkt": 2.774950663,
+    "cps_mkt": 1.944514231,
     "clientes_novos": 83,
     "clientes_recorrentes": 36
   }
