@@ -1474,5 +1474,32 @@
     "begin_checkout": 746,
     "purchase": 158,
     "conversion_rate": 0.01252179426216516
+  },
+  {
+    "data": "2026-07-03",
+    "sessions": 14315,
+    "view_item": 12642,
+    "add_to_cart": 722,
+    "begin_checkout": 611,
+    "purchase": 131,
+    "conversion_rate": 0.009151239958085923
+  },
+  {
+    "data": "2026-07-04",
+    "sessions": 13608,
+    "view_item": 11925,
+    "add_to_cart": 771,
+    "begin_checkout": 615,
+    "purchase": 152,
+    "conversion_rate": 0.011169900058788948
+  },
+  {
+    "data": "2026-07-05",
+    "sessions": 14792,
+    "view_item": 13125,
+    "add_to_cart": 760,
+    "begin_checkout": 626,
+    "purchase": 121,
+    "conversion_rate": 0.008180097349918876
   }
 ]

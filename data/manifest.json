@@ -1,49 +1,68 @@
 {
-  "generated_at": "2026-07-03T18:42:21.207Z",
+  "generated_at": "2026-07-06T17:05:55.696Z",
   "mode": "apps_script_bigquery_d1",
   "project_id": "reise-ssot",
-  "start_date": "2024-06-02",
-  "end_date": "2026-07-02",
+  "start_date": "2024-06-05",
+  "end_date": "2026-07-05",
   "dry_run": false,
+  "bq_export_enabled": true,
   "max_bytes_billed": 3221225472,
   "files": {
     "kpis_dia.json": {
       "rows": 761,
-      "bytes_processed": 76568,
+      "bytes_processed": 76688,
       "location": "US",
       "updated": true
     },
     "funil_dia.json": {
-      "rows": 164,
-      "bytes_processed": 5302921,
+      "rows": 167,
+      "bytes_processed": 5380492,
       "location": "US",
       "updated": true
     },
     "produtos_dia.json": {
-      "rows": 1899,
-      "bytes_processed": 0,
-      "location": "southamerica-east1",
+      "rows": 21452,
+      "bytes_processed": 302632697,
+      "location": "US",
+      "updated": true
+    },
+    "lancamentos_produtos_dia.json": {
+      "rows": 21073,
+      "bytes_processed": 302632697,
+      "location": "US",
       "updated": true
     },
     "campanhas_dia.json": {
-      "rows": 5124,
-      "bytes_processed": 2091655871,
+      "rows": 5277,
+      "bytes_processed": 2254806376,
       "location": "US",
       "updated": true
     },
     "utms_dia.json": {
-      "rows": 7027,
-      "bytes_processed": 176213664,
+      "rows": 7204,
+      "bytes_processed": 180627625,
       "location": "US",
       "updated": true
     },
     "estoque.json": {
       "rows": 1040,
-      "bytes_processed": 694425658,
+      "bytes_processed": 704351119,
       "location": "southamerica-east1",
       "updated": true
     },
     "eventos_manuais.json": {
+      "rows": 0,
+      "bytes_processed": 0,
+      "location": "google_sheets",
+      "updated": true
+    },
+    "lancamentos_modelos.json": {
+      "rows": 4,
+      "bytes_processed": 0,
+      "location": "google_sheets",
+      "updated": true
+    },
+    "lancamentos_investimentos.json": {
       "rows": 0,
       "bytes_processed": 0,
       "location": "google_sheets",
