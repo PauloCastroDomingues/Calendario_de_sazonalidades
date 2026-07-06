@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.14 - 2026-07-06
+
+- Reagrupada a selecao de tenis por familia comercial de modelo, como `Monochrome`, `GT`, `Avant` e `Phantom`.
+- Mantido o vinculo com linhas antigas da planilha como `RS8 Avant` sem quebrar a analise agregada por familia.
+- Adicionados cards de destaque para `Tenis mais vendido`, `Cor lider` e `Tamanho lider` na analise de lancamentos.
+- Atualizados os rotulos da tabela para reforcar analise de modelo, cor e tamanho do tenis.
+- Atualizado cache bust dos assets para `v=0.5.14`.
+
 ## 0.5.13 - 2026-07-06
 
 - Alterada a selecao de modelos da aba `Analise de lancamentos` para dois dropdowns: primeiro `Tipo de produto`, depois `Modelo`.

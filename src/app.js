@@ -74,6 +74,9 @@ const FLUCTUATION_METRICS = [
 
 const LAUNCH_MODEL_PATTERNS = [
   { pattern: /\bmonochrome\b|\brs\s*8\s*monochrome\b|\brs8monochrome\b/, name: "Monochrome" },
+  { pattern: /\bavant\b|\brs\s*[678]\s*avant\b|\brs[678]avant\b/, name: "Avant" },
+  { pattern: /\bgt\b|\brs\s*[67]\s*gt\b|\brs[67]gt\b|\bknit\s*gt\b|\bknitgt\b|\b911\s*gt\b|\b911gt\b/, name: "GT" },
+  { pattern: /\bphantom\b|\bphantom\s*(slip|easy|knit)\b|\bphantom(slip|easy|knit)\b/, name: "Phantom" },
   { pattern: /\brs\s*8\s*avant\b|\brs8avant\b/, name: "RS8 Avant" },
   { pattern: /\brs\s*7\s*avant\b|\brs7avant\b/, name: "RS7 Avant" },
   { pattern: /\brs\s*6\s*avant\b|\brs6avant\b/, name: "RS6 Avant" },
@@ -96,6 +99,8 @@ const LAUNCH_MODEL_PATTERNS = [
   { pattern: /\bessential\b/, name: "Essential" },
   { pattern: /\bzurich\b/, name: "Zurich" },
 ];
+
+const LAUNCH_SHOE_MODEL_FAMILIES = new Set(["monochrome", "avant", "gt", "phantom"]);
 
 const LAUNCH_TOPIC_RULES = [
   {
@@ -1487,7 +1492,7 @@ function renderLaunchProductPicker(products) {
   topicSelect.disabled = !groupedProducts.length;
 
   productSelect.innerHTML = [
-    `<option value="">${topicProducts.length ? "Selecionar modelo" : "Sem modelos neste tipo"}</option>`,
+    `<option value="">${topicProducts.length ? "Selecionar modelo de tenis" : "Sem modelos neste tipo"}</option>`,
     ...topicProducts.map((product) => {
       const selectedLabel = state.launch.productKeys.includes(product.key) ? "Selecionado - " : "";
       const label = `${selectedLabel}${product.name} | ${launchProductDateLabel(product)} | ${formatCompactCurrency(product.revenue)}`;
@@ -1670,7 +1675,25 @@ function renderLaunchMetricGrid(analysis) {
     analysis.metrics.clientes_novos + analysis.metrics.clientes_recorrentes
   );
   const planning = analysis.planning || {};
+  const topModel = [...(analysis.productSummary.byProduct || [])].sort((a, b) => b.items - a.items || b.revenue - a.revenue)[0];
+  const topColor = analysis.productSummary.byColor?.[0] || null;
+  const topSize = analysis.productSummary.bySize?.[0] || null;
   const cards = [
+    [
+      "Tenis mais vendido",
+      topModel ? escapeHtml(topModel.name) : "-",
+      topModel ? `${formatInteger(topModel.items)} itens - ${formatCurrency(topModel.revenue)}` : "Sem venda no periodo",
+    ],
+    [
+      "Cor lider",
+      topColor ? escapeHtml(topColor.label) : "-",
+      topColor ? `${formatInteger(topColor.items)} itens - ${formatCurrency(topColor.revenue)}` : "Sem cor mapeada",
+    ],
+    [
+      "Tamanho lider",
+      topSize ? escapeHtml(topSize.label) : "-",
+      topSize ? `${formatInteger(topSize.items)} itens - ${formatCurrency(topSize.revenue)}` : "Sem tamanho mapeado",
+    ],
     ["Receita modelo", formatCurrency(analysis.productSummary.revenue), variationBadge(analysis.revenueVariation)],
     ["Itens modelo", formatInteger(analysis.productSummary.items), `${formatCurrency(productTicket)} por item`],
     ["Faturamento geral", formatCurrency(analysis.metrics.receita_total), variationBadge(analysis.contextRevenueVariation)],
@@ -1922,13 +1945,14 @@ function collectLaunchProducts() {
   });
 
   modelConfigs.forEach((config) => {
-    if (map.has(config.model_key)) return;
-    map.set(config.model_key, {
-      key: config.model_key,
-      modelKey: config.model_key,
+    const configuredModel = launchConfiguredModelIdentity(config);
+    if (map.has(configuredModel.key)) return;
+    map.set(configuredModel.key, {
+      key: configuredModel.key,
+      modelKey: configuredModel.key,
       sku: "",
       productKey: "",
-      name: config.modelo,
+      name: configuredModel.name,
       topic: config.topico || inferLaunchProductTopic({}, config.modelo),
       launchDate: config.data_lancamento || "",
       config,
@@ -1979,9 +2003,10 @@ function launchModelIdentity(row = {}, configs = []) {
     return config.termos_busca.some((term) => term && text.includes(term));
   });
   if (matchedConfig) {
+    const configuredModel = launchConfiguredModelIdentity(matchedConfig);
     return {
-      key: matchedConfig.model_key,
-      name: matchedConfig.modelo,
+      key: configuredModel.key,
+      name: configuredModel.name,
       topic: matchedConfig.topico || inferLaunchProductTopic(row, matchedConfig.modelo),
       config: matchedConfig,
     };
@@ -1996,18 +2021,37 @@ function launchModelIdentity(row = {}, configs = []) {
     return (
       config.model_key === modelKey ||
       configName === normalizedName ||
-      (normalizedName.length >= 8 && configName.includes(normalizedName))
+      launchModelConfigMatchesFamily(configName, normalizedName)
     );
   });
   if (directConfig) {
+    const configName = normalizeComparableText(directConfig.modelo || "");
+    const useFamilyIdentity = LAUNCH_SHOE_MODEL_FAMILIES.has(modelKey) && configName !== normalizedName;
     return {
-      key: directConfig.model_key,
-      name: directConfig.modelo || name,
+      key: useFamilyIdentity ? modelKey : directConfig.model_key,
+      name: useFamilyIdentity ? name : directConfig.modelo || name,
       topic: directConfig.topico || inferLaunchProductTopic(row, directConfig.modelo || name),
       config: directConfig,
     };
   }
   return { key: modelKey, name, topic: inferLaunchProductTopic(row, name), config: null };
+}
+
+function launchModelConfigMatchesFamily(configName = "", normalizedName = "") {
+  if (!LAUNCH_SHOE_MODEL_FAMILIES.has(slug(normalizedName))) {
+    return normalizedName.length >= 8 && configName.includes(normalizedName);
+  }
+  const familyToken = normalizeComparableText(normalizedName);
+  return new RegExp(`(^|\\s)${escapeRegExp(familyToken)}(\\s|$)`).test(configName);
+}
+
+function launchConfiguredModelIdentity(config = {}) {
+  const text = normalizeComparableText(`${config.modelo || ""} ${(config.termos_busca || []).join(" ")}`);
+  const pattern = LAUNCH_MODEL_PATTERNS.find((item) => item.pattern.test(text));
+  if (pattern && LAUNCH_SHOE_MODEL_FAMILIES.has(slug(pattern.name))) {
+    return { key: slug(pattern.name), name: pattern.name };
+  }
+  return { key: config.model_key, name: config.modelo };
 }
 
 function inferLaunchFallbackModelName(row = {}) {
@@ -4480,6 +4524,10 @@ function escapeHtml(value = "") {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function escapeRegExp(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function emptyTableRow(colspan) {
