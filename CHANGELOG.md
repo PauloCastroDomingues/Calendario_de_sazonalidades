@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.22 - 2026-07-06
+
+- Reforcado o Apps Script para incluir linhas dos modelos de lancamento tambem em `produtos_dia.json`, reduzindo o risco de curva em branco quando o arquivo completo de lancamentos ainda nao foi gerado.
+- Adicionado painel visual de comparativo entre modelos, com D0, D+7, D+30, D+90, pico semanal, cor lider, tamanho lider e status da base.
+- O comparativo automatico passa a priorizar modelos cadastrados em `lancamentos_modelos`, evitando misturar produtos genericos na leitura de tenis.
+- Janelas sem granularidade suficiente no recorte antigo agora aparecem como `Base parcial`, em vez de parecerem faturamento zero.
+- Redesenhado o resumo executivo da aba de lancamentos com mais contraste e hierarquia.
+- Atualizado cache bust dos assets para `v=0.5.22`.
+
 ## 0.5.21 - 2026-07-06
 
 - Adicionada a exportacao `data/lancamentos_produtos_dia.json` no Apps Script, com vendas por SKU/dia filtradas pelos modelos cadastrados na planilha de lancamentos.

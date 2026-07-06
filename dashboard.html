@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Calendário Comercial Reise</title>
-    <link rel="stylesheet" href="src/style.css?v=0.5.21" />
+    <link rel="stylesheet" href="src/style.css?v=0.5.22" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="src/app.js?v=0.5.21" defer></script>
+    <script src="src/app.js?v=0.5.22" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -539,6 +539,35 @@
         <div id="launchInsight" class="launch-insight"></div>
 
         <div id="launchMetricGrid" class="launch-metric-grid"></div>
+
+        <section id="launchComparisonPanel" class="launch-comparison-panel" aria-label="Comparativo entre lancamentos" hidden>
+          <div class="section-heading launch-comparison-heading">
+            <div>
+              <span class="eyebrow">Comparativo</span>
+              <h2>Curva relativa por modelo</h2>
+            </div>
+            <span id="launchComparisonSubtitle" class="comparison-badge">Modelos selecionados</span>
+          </div>
+          <div id="launchComparisonGrid" class="launch-comparison-grid"></div>
+          <div class="table-wrap launch-comparison-table-wrap">
+            <table class="launch-comparison-table">
+              <thead>
+                <tr>
+                  <th>Modelo</th>
+                  <th class="numeric-cell">D0</th>
+                  <th class="numeric-cell">D+7</th>
+                  <th class="numeric-cell">D+30</th>
+                  <th class="numeric-cell">D+90</th>
+                  <th>Pico semanal</th>
+                  <th>Cor lider</th>
+                  <th>Tamanho lider</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="launchComparisonTable"></tbody>
+            </table>
+          </div>
+        </section>
 
         <div id="launchProductCards" class="launch-product-card-grid"></div>
 

@@ -1615,6 +1615,7 @@ function renderLaunchWorkbench() {
   const analysis = buildLaunchWorkbenchAnalysis();
   renderLaunchInsight(analysis);
   renderLaunchMetricGrid(analysis);
+  renderLaunchComparison(analysis);
   renderLaunchProductCards(analysis);
   renderLaunchCurves(analysis);
   renderLaunchAcceleration(analysis);
@@ -1632,7 +1633,9 @@ function buildLaunchWorkbenchAnalysis() {
   const windowDays = Number(state.launch.windowDays || 90);
   const cutoff = getDataCutoffKey();
   const fallbackLaunchDate = launchEvent?.data_inicio || state.launch.launchDate || cutoff || currentDateKey();
+  const comparisonProducts = resolveLaunchComparisonProducts(products, selectedProducts);
   const productWindows = buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbackLaunchDate);
+  const comparisonWindows = buildLaunchProductWindows(comparisonProducts, windowDays, cutoff, fallbackLaunchDate);
   const launchDate = productWindows[0]?.launchDate || fallbackLaunchDate;
   const plannedEnd = maxDateKey(productWindows.map((item) => item.plannedEnd)) || addDays(launchDate, windowDays - 1);
   const actualEnd = maxDateKey(productWindows.map((item) => item.actualEnd)) || plannedEnd;
@@ -1651,6 +1654,7 @@ function buildLaunchWorkbenchAnalysis() {
   const curve = buildLaunchCurve(productWindows, selectedProducts);
   const acceleration = buildLaunchWeeklyAcceleration(productWindows, selectedProducts, launchEvent);
   const seasonality = summarizeLaunchSeasonality(productWindows);
+  const comparison = buildLaunchComparisonRows(comparisonWindows);
   const dataSource = getLaunchProductSourceMeta();
 
   return {
@@ -1664,6 +1668,8 @@ function buildLaunchWorkbenchAnalysis() {
     actualKeys,
     baselineKeys,
     productWindows,
+    comparisonProducts,
+    comparisonWindows,
     selectedProducts,
     productSummary,
     baselineProductSummary,
@@ -1675,6 +1681,7 @@ function buildLaunchWorkbenchAnalysis() {
     curve,
     acceleration,
     seasonality,
+    comparison,
     dataSource,
     revenueVariation: calculateVariation(productSummary.revenue, baselineProductSummary.revenue),
     contextRevenueVariation: calculateVariation(metrics.receita_total, baselineMetrics.receita_total),
@@ -1699,6 +1706,109 @@ function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbac
       baselineKeys,
     };
   });
+}
+
+function resolveLaunchComparisonProducts(products, selectedProducts) {
+  if (!selectedProducts.length) return [];
+  if (selectedProducts.length > 1) return selectedProducts;
+
+  const selected = selectedProducts[0];
+  const selectedKeys = new Set(selectedProducts.map((product) => product.key));
+  const configuredPeers = products.filter(
+    (product) => product.config && product.key !== selected.key && (product.topic || "Outros") === (selected.topic || "Outros")
+  );
+  const fallbackPeers = products.filter(
+    (product) => product.key !== selected.key && (product.topic || "Outros") === (selected.topic || "Outros")
+  );
+  const peerPool = configuredPeers.length ? configuredPeers : fallbackPeers;
+  const peers = peerPool
+    .sort((a, b) => {
+      const dateCompare = String(b.launchDate || b.firstDate || "").localeCompare(String(a.launchDate || a.firstDate || ""));
+      return dateCompare || b.revenue - a.revenue;
+    })
+    .slice(0, 5);
+
+  return [selected, ...peers].filter((product) => {
+    if (selectedKeys.has(product.key)) return true;
+    return Boolean(product.launchDate || product.revenue || product.items);
+  });
+}
+
+function buildLaunchComparisonRows(productWindows) {
+  const selectedKeys = new Set(state.launch.productKeys || []);
+  const dataSource = getLaunchProductSourceMeta();
+  return productWindows
+    .map((window) => {
+      const total = summarizeLaunchProductWindow(window, window.actualKeys.length || window.windowDays || 90);
+      const d0 = summarizeLaunchProductWindow(window, 1);
+      const d7 = summarizeLaunchProductWindow(window, 7);
+      const d30 = summarizeLaunchProductWindow(window, 30);
+      const d90 = summarizeLaunchProductWindow(window, 90);
+      const peakWeek = findLaunchPeakWeek(window);
+      const topProduct = total.byProduct[0] || {};
+      const topColor = total.byColor?.[0] || topProduct.colorSummary?.[0] || null;
+      const topSize = total.bySize?.[0] || topProduct.sizeSummary?.[0] || null;
+      const sourceGap = dataSource.isFallback;
+
+      return {
+        key: window.productKey,
+        name: window.product.name,
+        isSelected: selectedKeys.has(window.productKey),
+        launchDate: window.launchDate,
+        launchDateLabel: window.launchDate ? `D0 ${formatShortDate(window.launchDate)}` : "Sem D0",
+        totalRevenue: total.revenue,
+        totalItems: total.items,
+        d0Revenue: d0.revenue,
+        d7Revenue: d7.revenue,
+        d30Revenue: d30.revenue,
+        d90Revenue: d90.revenue,
+        d0Status: launchComparisonValueStatus(sourceGap, d0),
+        d7Status: launchComparisonValueStatus(sourceGap, d7),
+        d30Status: launchComparisonValueStatus(sourceGap, d30),
+        d90Status: launchComparisonValueStatus(sourceGap, d90),
+        peakWeekLabel: peakWeek.label,
+        peakWeekRevenue: peakWeek.revenue,
+        pairsPerOrder: safeDivide(total.items, getMetricSummary(window.actualKeys).pedidos_aprovados),
+        topColorLabel: topColor ? `${topColor.label} (${formatInteger(topColor.items)})` : "Sem cor",
+        topSizeLabel: topSize ? `${topSize.label} (${formatInteger(topSize.items)})` : "Sem tamanho",
+        topVariantLabel: [topColor?.label, topSize?.label].filter(Boolean).join(" / ") || "sem variante lider",
+        sourceGap,
+      };
+    })
+    .sort((a, b) => Number(b.isSelected) - Number(a.isSelected) || b.d90Revenue - a.d90Revenue || b.totalItems - a.totalItems);
+}
+
+function summarizeLaunchProductWindow(window, days) {
+  const keys = (window.actualKeys || []).slice(0, Math.max(0, days));
+  const rows = filterProductRowsByKeys(keys, [window.productKey]);
+  return {
+    ...summarizeLaunchWorkbenchProducts(rows, [window.product]),
+    capturedRows: rows.length,
+    expectedDays: keys.length,
+  };
+}
+
+function launchComparisonValueStatus(sourceGap, summary = {}) {
+  if (summary.capturedRows || summary.revenue || summary.items) return "captured";
+  return sourceGap ? "partial" : "zero";
+}
+
+function findLaunchPeakWeek(window) {
+  const weekCount = Math.ceil((window.actualKeys || []).length / 7);
+  let peak = { label: "Sem pico", revenue: 0 };
+  for (let index = 0; index < weekCount; index += 1) {
+    const start = index * 7;
+    const summary = summarizeLaunchProductWindow(window, 7 + start);
+    const previous = summarizeLaunchProductWindow(window, start);
+    const revenue = summary.revenue - previous.revenue;
+    if (revenue > peak.revenue) {
+      peak = {
+        label: `S${index + 1}`,
+        revenue,
+      };
+    }
+  }
+  return peak;
 }
 
 function filterProductRowsByWindows(productWindows, keyField) {
@@ -1813,6 +1923,81 @@ function renderLaunchMetricGrid(analysis) {
       `
     )
     .join("");
+}
+
+function renderLaunchComparison(analysis) {
+  const panel = document.getElementById("launchComparisonPanel");
+  const grid = document.getElementById("launchComparisonGrid");
+  const table = document.getElementById("launchComparisonTable");
+  const subtitle = document.getElementById("launchComparisonSubtitle");
+  if (!panel || !grid || !table || !subtitle) return;
+
+  panel.hidden = !analysis.selectedProducts.length;
+  if (!analysis.selectedProducts.length) {
+    grid.innerHTML = "";
+    table.innerHTML = "";
+    subtitle.textContent = "";
+    return;
+  }
+
+  const rows = analysis.comparison || [];
+  const autoPeers = analysis.selectedProducts.length === 1 && rows.length > 1;
+  subtitle.textContent = autoPeers
+    ? "Comparando o modelo selecionado com outros modelos do mesmo tipo."
+    : "Comparando apenas os modelos selecionados.";
+
+  grid.innerHTML =
+    rows
+      .slice(0, 6)
+      .map((row, index) => {
+        const badge = row.isSelected ? "Selecionado" : "Referencia";
+        const evidence = row.sourceGap
+          ? `${formatInteger(row.totalItems)} itens na base parcial`
+          : row.totalItems
+            ? `${formatInteger(row.totalItems)} itens capturados`
+            : "Sem venda na janela";
+        return `
+          <article class="launch-comparison-card ${row.isSelected ? "is-selected" : ""}">
+            <div class="launch-comparison-card-head">
+              <span>${escapeHtml(badge)} ${index + 1}</span>
+              <strong>${escapeHtml(row.name)}</strong>
+              <small>${escapeHtml(row.launchDateLabel)}</small>
+            </div>
+            <div class="launch-comparison-card-metrics">
+              <span>D+7 <strong>${renderLaunchComparisonValue(row.d7Revenue, row.d7Status)}</strong></span>
+              <span>D+30 <strong>${renderLaunchComparisonValue(row.d30Revenue, row.d30Status)}</strong></span>
+              <span>D+90 <strong>${renderLaunchComparisonValue(row.d90Revenue, row.d90Status)}</strong></span>
+              <span>Pico <strong>${escapeHtml(row.peakWeekLabel)}</strong></span>
+            </div>
+            <p>${escapeHtml(evidence)} · ${formatRatio(row.pairsPerOrder)} pares/pedido · ${escapeHtml(row.topVariantLabel)}</p>
+          </article>
+        `;
+      })
+      .join("") || `<p class="launch-intelligence-empty">Sem modelos comparaveis para esta selecao.</p>`;
+
+  table.innerHTML =
+    rows
+      .map(
+        (row) => `
+          <tr class="${row.isSelected ? "is-selected" : ""}">
+            <td><strong>${escapeHtml(row.name)}</strong><br><span>${escapeHtml(row.launchDateLabel)}</span></td>
+            <td class="numeric-cell">${renderLaunchComparisonValue(row.d0Revenue, row.d0Status)}</td>
+            <td class="numeric-cell">${renderLaunchComparisonValue(row.d7Revenue, row.d7Status)}</td>
+            <td class="numeric-cell">${renderLaunchComparisonValue(row.d30Revenue, row.d30Status)}</td>
+            <td class="numeric-cell">${renderLaunchComparisonValue(row.d90Revenue, row.d90Status)}</td>
+            <td>${escapeHtml(row.peakWeekLabel)}<br><span>${formatCurrency(row.peakWeekRevenue)}</span></td>
+            <td>${escapeHtml(row.topColorLabel)}</td>
+            <td>${escapeHtml(row.topSizeLabel)}</td>
+            <td>${row.sourceGap ? `<span class="status-chip warning">Base incompleta</span>` : `<span class="status-chip success">Capturado</span>`}</td>
+          </tr>
+        `
+      )
+      .join("") || emptyTableRow(9);
+}
+
+function renderLaunchComparisonValue(value, status) {
+  if (status === "partial") return `<span class="comparison-missing">Base parcial</span>`;
+  return formatCurrency(value);
 }
 
 function renderLaunchProductCards(analysis) {
