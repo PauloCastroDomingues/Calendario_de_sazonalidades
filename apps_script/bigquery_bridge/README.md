@@ -132,7 +132,7 @@ Para a aba `Analise de lancamentos`, o dashboard pode usar duas abas adicionais 
 2. Preencha a aba `lancamentos_modelos` com o nome do modelo e a data oficial de lancamento.
 3. Preencha a aba `lancamentos_investimentos` com o mesmo nome do modelo e os valores de investimento/receita.
 4. Rode `exportarLancamentos` para atualizar apenas os JSONs dessas abas.
-5. Rode `atualizarDadosD1` para atualizar BigQuery D-1, eventos e lancamentos no mesmo commit.
+5. Rode `atualizarDadosD1` para atualizar BigQuery D-1, eventos, lancamentos e a base `data/lancamentos_produtos_dia.json` no mesmo commit.
 
 Colunas de `lancamentos_modelos`:
 
@@ -154,3 +154,5 @@ observacao
 
 Use exatamente o mesmo texto em `modelo` nas duas abas. Exemplo: `RS8 Avant`, `Phantom Slip`, `RS6 GT`.
 O dashboard usa esse nome para achar os produtos e depois quebra a analise por cor, tamanho e SKU.
+
+Para a curva diaria ficar completa, o Apps Script usa os modelos cadastrados como filtro de busca no BigQuery. Em linhas especificas, cadastre o nome comercial separado quando ele for uma familia propria. Exemplo: `Monochrome` deve ficar como modelo separado, mesmo que o SKU/produto tenha `RS8 Avant Monochrome` no nome.

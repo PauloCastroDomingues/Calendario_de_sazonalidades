@@ -17,6 +17,7 @@ DATA_FILES = {
     "kpis": "kpis_dia.json",
     "funil": "funil_dia.json",
     "produtos": "produtos_dia.json",
+    "lancamentos_produtos": "lancamentos_produtos_dia.json",
     "campanhas": "campanhas_dia.json",
     "utms": "utms_dia.json",
     "estoque": "estoque.json",

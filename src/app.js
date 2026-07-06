@@ -3,6 +3,7 @@ const DATA_FILES = {
   kpis: { path: "data/kpis_dia.json" },
   funil: { path: "data/funil_dia.json" },
   produtos: { path: "data/produtos_dia.json" },
+  lancamentosProdutos: { path: "data/lancamentos_produtos_dia.json", optional: true },
   campanhas: { path: "data/campanhas_dia.json" },
   utms: { path: "data/utms_dia.json" },
   estoque: { path: "data/estoque.json" },
@@ -577,7 +578,7 @@ async function loadData() {
     })
   );
 
-  state.data = Object.fromEntries(entries);
+  state.data = normalizeCalendarPayload(Object.fromEntries(entries));
   state.loadedAt = null;
   state.deletedManualEventIds = loadDeletedManualEventIds();
   state.data.eventosManuais = normalizeManualEventsList(
@@ -619,6 +620,7 @@ function normalizeCalendarPayload(payload = {}) {
     kpis: payload.kpis || [],
     funil: payload.funil || [],
     produtos: payload.produtos || [],
+    lancamentosProdutos: payload.lancamentos_produtos || payload.lancamentosProdutos || [],
     campanhas: payload.campanhas || [],
     utms: payload.utms || [],
     estoque: payload.estoque || [],
@@ -837,6 +839,7 @@ function buildIndexes() {
   state.indexes.kpis = indexByDate(state.data.kpis);
   state.indexes.funil = indexByDate(state.data.funil);
   state.indexes.produtos = groupByDate(state.data.produtos);
+  state.indexes.lancamentosProdutos = groupByDate(state.data.lancamentosProdutos || []);
   state.indexes.campanhas = groupByDate(state.data.campanhas);
   state.indexes.utms = groupByDate(state.data.utms);
   state.indexes.estoque = indexBySku(state.data.estoque);
@@ -1614,6 +1617,9 @@ function renderLaunchWorkbench() {
   renderLaunchMetricGrid(analysis);
   renderLaunchProductCards(analysis);
   renderLaunchCurves(analysis);
+  renderLaunchAcceleration(analysis);
+  renderLaunchSeasonality(analysis);
+  renderLaunchChannelBreakdown(analysis);
   renderLaunchWindowCards(analysis);
   renderLaunchProductTable(analysis);
   renderLaunchMediaGrid(analysis);
@@ -1643,6 +1649,9 @@ function buildLaunchWorkbenchAnalysis() {
   const planning = summarizeLaunchPlanning(actualKeys, selectedProducts);
   const windows = buildLaunchWorkbenchWindows(productWindows, launchEvent);
   const curve = buildLaunchCurve(productWindows, selectedProducts);
+  const acceleration = buildLaunchWeeklyAcceleration(productWindows, selectedProducts, launchEvent);
+  const seasonality = summarizeLaunchSeasonality(productWindows);
+  const dataSource = getLaunchProductSourceMeta();
 
   return {
     launchEvent,
@@ -1664,6 +1673,9 @@ function buildLaunchWorkbenchAnalysis() {
     planning,
     windows,
     curve,
+    acceleration,
+    seasonality,
+    dataSource,
     revenueVariation: calculateVariation(productSummary.revenue, baselineProductSummary.revenue),
     contextRevenueVariation: calculateVariation(metrics.receita_total, baselineMetrics.receita_total),
   };
@@ -1723,10 +1735,13 @@ function renderLaunchInsight(analysis) {
     analysis.selectedProducts.length > 1
       ? " Cada modelo usa a propria data de lancamento como D0 para comparar desempenho em dias relativos."
       : "";
+  const sourceNote = analysis.dataSource?.isFallback
+    ? " Fonte atual: recorte top/queda; rode o Apps Script atualizado para carregar a base completa de lancamentos."
+    : " Fonte atual: base completa de lancamentos por SKU/dia.";
 
   target.innerHTML = `
     <strong>${escapeHtml(eventName)} · ${escapeHtml(productLabel)}</strong>
-    <span>Janela analisada: ${actualText}.${relativeNote} Modelo vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.</span>
+    <span>Janela analisada: ${actualText}.${relativeNote} Modelo vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.${sourceNote}</span>
   `;
 }
 
@@ -1743,6 +1758,7 @@ function renderLaunchMetricGrid(analysis) {
   const topModel = [...(analysis.productSummary.byProduct || [])].sort((a, b) => b.items - a.items || b.revenue - a.revenue)[0];
   const topColor = analysis.productSummary.byColor?.[0] || null;
   const topSize = analysis.productSummary.bySize?.[0] || null;
+  const pairsPerOrder = safeDivide(analysis.productSummary.items, analysis.metrics.pedidos_aprovados);
   const cards = [
     [
       "Tenis mais vendido",
@@ -1765,8 +1781,10 @@ function renderLaunchMetricGrid(analysis) {
     ["Pedidos", formatInteger(analysis.metrics.pedidos_aprovados), `Ticket ${formatCurrency(analysis.metrics.ticket_medio)}`],
     ["Conversão", formatPercent(analysis.metrics.taxa_conversao), `${formatInteger(analysis.metrics.sessoes)} sessões`],
     ["Clientes novos", formatPercent(newShare), `${formatInteger(analysis.metrics.clientes_novos)} clientes`],
+    ["Pares por pedido", formatRatio(pairsPerOrder), `${formatInteger(analysis.productSummary.items)} itens / ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos`],
     ["Investimento", formatCurrency(analysis.media.investment), `${formatDecimal(analysis.media.ordersPer1k)} pedidos / R$1k`],
     ["ROAS / CPA", `${formatRoas(analysis.media.roas)} · ${formatCurrency(analysis.media.cpa)}`, `${formatCurrency(analysis.media.attributedRevenue)} UTM`],
+    ["Fonte da curva", analysis.dataSource?.label || "-", analysis.dataSource?.isFallback ? "Atualize o Apps Script para fechar os buracos" : "SKU/dia completo para lancamentos"],
   ];
 
   if (planning.rows) {
@@ -1887,6 +1905,104 @@ function renderLaunchCurves(analysis) {
   );
 }
 
+function renderLaunchAcceleration(analysis) {
+  const target = document.getElementById("launchAccelerationGrid");
+  if (!target) return;
+  const rows = analysis.acceleration || [];
+  target.innerHTML =
+    rows
+      .slice(0, 8)
+      .map(
+        (row) => `
+          <article class="launch-intelligence-card">
+            <span>${escapeHtml(row.label)} - ${escapeHtml(row.range)}</span>
+            <strong>${formatCurrency(row.revenue)}</strong>
+            <small>${formatInteger(row.items)} itens - ${formatInteger(row.orders)} pedidos - ${formatRatio(row.pairsPerOrder)} pares/pedido</small>
+            <em>${row.variation.label} vs semana anterior</em>
+          </article>
+        `
+      )
+      .join("") ||
+    `<p class="launch-intelligence-empty">Sem semanas com venda para os modelos selecionados.</p>`;
+}
+
+function renderLaunchSeasonality(analysis) {
+  const target = document.getElementById("launchSeasonalityList");
+  if (!target) return;
+  const rows = analysis.seasonality || [];
+  target.innerHTML =
+    rows
+      .map(
+        (row) => `
+          <article class="launch-seasonality-row launch-seasonality-${slug(row.role)}">
+            <div>
+              <span>${escapeHtml(row.role)} - ${escapeHtml(row.type)}</span>
+              <strong>${escapeHtml(row.title)}</strong>
+              <small>${formatShortDate(row.start)} a ${formatShortDate(row.end)} - ${formatInteger(row.days)} dia(s) na janela</small>
+            </div>
+            <div>
+              <strong>${formatCurrency(row.revenue)}</strong>
+              <small>${formatInteger(row.orders)} pedidos - ${row.variation.label} vs periodo anterior</small>
+            </div>
+          </article>
+        `
+      )
+      .join("") ||
+    `<p class="launch-intelligence-empty">Nenhuma sazonalidade ou campanha cadastrada cruzou a janela dos modelos selecionados.</p>`;
+}
+
+function renderLaunchChannelBreakdown(analysis) {
+  const target = document.getElementById("launchChannelBreakdown");
+  if (!target) return;
+  const channelRows = analysis.media.channelRows || [];
+  const crm = channelRows.find((row) => row.channel === "CRM") || { revenue: 0, orders: 0, conversionProxy: 0 };
+  const paid = channelRows.find((row) => row.channel === "Midia paga") || {
+    revenue: 0,
+    orders: 0,
+    investment: analysis.media.investment,
+    roas: analysis.media.roas,
+    cpa: analysis.media.cpa,
+  };
+  const pairsPerOrder = safeDivide(analysis.productSummary.items, analysis.metrics.pedidos_aprovados);
+  const kpis = [
+    ["Pares por pedido", formatRatio(pairsPerOrder), `${formatInteger(analysis.productSummary.items)} itens / ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos`],
+    ["CRM receita", formatCurrency(crm.revenue), `${formatInteger(crm.orders)} pedido(s) por UTM CRM`],
+    ["CRM conversao", crm.conversionProxy ? formatPercent(crm.conversionProxy) : "-", "Proxy por clique/impressao quando existir"],
+    ["Midia paga", formatRoas(paid.roas), `${formatCurrency(paid.investment || 0)} investido`],
+  ];
+  const channelHtml = channelRows
+    .slice(0, 5)
+    .map(
+      (row) => `
+        <div class="launch-channel-row">
+          <span>${escapeHtml(row.channel)}</span>
+          <strong>${formatCurrency(row.revenue)}</strong>
+          <small>${formatInteger(row.orders)} pedidos - ${row.investment ? `${formatRoas(row.roas)} / CPA ${formatCurrency(row.cpa)}` : "sem custo mapeado"}</small>
+        </div>
+      `
+    )
+    .join("");
+
+  target.innerHTML = `
+    <div class="launch-channel-kpis">
+      ${kpis
+        .map(
+          ([label, value, note]) => `
+            <span>
+              <small>${escapeHtml(label)}</small>
+              <strong>${value}</strong>
+              <em>${escapeHtml(note)}</em>
+            </span>
+          `
+        )
+        .join("")}
+    </div>
+    <div class="launch-channel-list">
+      ${channelHtml || `<p class="launch-intelligence-empty">Sem UTM atribuida na janela.</p>`}
+    </div>
+  `;
+}
+
 function renderLaunchWindowCards(analysis) {
   const target = document.getElementById("launchWindowCards");
   if (!target) return;
@@ -2005,10 +2121,31 @@ function isLaunchManualEvent(event = {}) {
   return compact.includes("lancamento") || text.includes("launch");
 }
 
+function getLaunchProductRows() {
+  const launchRows = state.data.lancamentosProdutos || [];
+  return launchRows.length ? launchRows : state.data.produtos || [];
+}
+
+function getLaunchProductRowsForDate(dateKey) {
+  if ((state.data.lancamentosProdutos || []).length) {
+    return state.indexes.lancamentosProdutos?.[dateKey] || [];
+  }
+  return state.indexes.produtos?.[dateKey] || [];
+}
+
+function getLaunchProductSourceMeta() {
+  const hasFullLaunchRows = Boolean((state.data.lancamentosProdutos || []).length);
+  return {
+    key: hasFullLaunchRows ? "lancamentos_produtos_dia" : "produtos_dia",
+    label: hasFullLaunchRows ? "base completa de lancamentos" : "recorte top/queda de produtos",
+    isFallback: !hasFullLaunchRows,
+  };
+}
+
 function collectLaunchProducts() {
   const map = new Map();
   const modelConfigs = state.data.lancamentosModelos || [];
-  (state.data.produtos || []).forEach((row) => {
+  getLaunchProductRows().forEach((row) => {
     const identity = launchModelIdentity(row, modelConfigs);
     const key = identity.key;
     if (!key) return;
@@ -2310,7 +2447,7 @@ function filterProductRowsByKeys(dateKeys, productKeys) {
   if (!dateKeys.length || !keySet.size) return [];
   const modelConfigs = state.data.lancamentosModelos || [];
   return dateKeys
-    .flatMap((dateKey) => state.indexes.produtos[dateKey] || [])
+    .flatMap((dateKey) => getLaunchProductRowsForDate(dateKey))
     .filter((row) => keySet.has(launchModelIdentity(row, modelConfigs).key));
 }
 
@@ -2397,6 +2534,44 @@ function summarizeLaunchWorkbenchMedia(dateKeys, event) {
   const clicks = filteredCampaignRows.reduce((sum, row) => sum + Number(row.cliques || 0), 0);
   const attributedRevenue = filteredUtmRows.reduce((sum, row) => sum + Number(row.receita || 0), 0);
   const attributedOrders = filteredUtmRows.reduce((sum, row) => sum + Number(row.pedidos || 0), 0);
+  const channelMap = new Map();
+  filteredUtmRows.forEach((row) => {
+    const channel = classifyLaunchChannel(row);
+    const current = channelMap.get(channel) || {
+      channel,
+      revenue: 0,
+      orders: 0,
+      investment: 0,
+      clicks: 0,
+      impressions: 0,
+      rows: 0,
+    };
+    current.revenue += Number(row.receita || 0);
+    current.orders += Number(row.pedidos || 0);
+    current.rows += 1;
+    channelMap.set(channel, current);
+  });
+  const paidChannel = channelMap.get("Midia paga") || {
+    channel: "Midia paga",
+    revenue: 0,
+    orders: 0,
+    investment: 0,
+    clicks: 0,
+    impressions: 0,
+    rows: 0,
+  };
+  paidChannel.investment += investment;
+  paidChannel.clicks += clicks;
+  paidChannel.impressions += impressions;
+  channelMap.set("Midia paga", paidChannel);
+  const channelRows = [...channelMap.values()]
+    .map((row) => ({
+      ...row,
+      roas: safeDivide(row.revenue, row.investment),
+      cpa: safeDivide(row.investment, row.orders),
+      conversionProxy: safeDivide(row.orders, row.clicks || row.impressions || 0),
+    }))
+    .sort((a, b) => b.revenue - a.revenue || b.orders - a.orders);
   return {
     filtered: Boolean(terms.length),
     campaigns: new Set(filteredCampaignRows.map((row) => row.campaign_id || row.campaign_name)).size,
@@ -2411,12 +2586,114 @@ function summarizeLaunchWorkbenchMedia(dateKeys, event) {
     roas: safeDivide(attributedRevenue, investment),
     cpa: safeDivide(investment, attributedOrders),
     ordersPer1k: safeDivide(attributedOrders, investment / 1000),
+    channelRows,
   };
 }
 
 function matchesLaunchTerm(row, terms, fields) {
   const text = normalizeComparableText(fields.map((field) => row[field] || "").join(" "));
   return terms.some((term) => text.includes(term));
+}
+
+function classifyLaunchChannel(row = {}) {
+  const text = normalizeComparableText(
+    [row.utm_source, row.utm_medium, row.utm_campaign, row.channel, row.last_source, row.last_source_type].join(" ")
+  );
+  if (/(crm|email|e-mail|mail|newsletter|whatsapp|wpp|sms|push|rdstation|rd station|klaviyo|activecampaign|flow)/.test(text)) {
+    return "CRM";
+  }
+  if (/(meta|facebook|instagram|google|ads|cpc|paid|pago|performance|max|tiktok|bing|youtube|display|search)/.test(text)) {
+    return "Midia paga";
+  }
+  if (/(organic|organico|seo|direct|direto|referral|social|unknown|unattributed|sem-campanha)/.test(text)) {
+    return "Organico / direto";
+  }
+  return row.channel || row.utm_source || "Outros";
+}
+
+function buildLaunchWeeklyAcceleration(productWindows, selectedProducts, event) {
+  const maxDays = Math.max(0, ...productWindows.map((window) => window.actualKeys.length));
+  const weekCount = Math.ceil(maxDays / 7);
+  let previousRevenue = 0;
+  return Array.from({ length: weekCount }, (_, index) => {
+    const startIndex = index * 7;
+    const endIndex = startIndex + 7;
+    const weekProductRows = productWindows.flatMap((window) =>
+      filterProductRowsByKeys(window.actualKeys.slice(startIndex, endIndex), [window.productKey])
+    );
+    const contextKeys = uniqueDateKeys(productWindows.flatMap((window) => window.actualKeys.slice(startIndex, endIndex)));
+    const products = summarizeLaunchWorkbenchProducts(weekProductRows, selectedProducts);
+    const metrics = getMetricSummary(contextKeys);
+    const media = summarizeLaunchWorkbenchMedia(contextKeys, event);
+    const topProduct = products.byProduct[0] || null;
+    const variation = index === 0 ? calculateVariation(products.revenue, 0) : calculateVariation(products.revenue, previousRevenue);
+    previousRevenue = products.revenue;
+    return {
+      label: `Semana ${index + 1}`,
+      range: `D+${startIndex} a D+${Math.max(startIndex, Math.min(endIndex - 1, maxDays - 1))}`,
+      revenue: products.revenue,
+      items: products.items,
+      orders: metrics.pedidos_aprovados,
+      roas: media.roas,
+      topProduct,
+      variation,
+      pairsPerOrder: safeDivide(products.items, metrics.pedidos_aprovados),
+      dailyAverage: safeDivide(products.revenue, contextKeys.length),
+    };
+  });
+}
+
+function summarizeLaunchSeasonality(productWindows) {
+  const keys = uniqueDateKeys(productWindows.flatMap((window) => window.actualKeys));
+  if (!keys.length) return [];
+  const start = keys[0];
+  const end = keys[keys.length - 1];
+  const events = collectEventsInRange(start, end);
+  return events
+    .map((event) => {
+      const eventStart = event.janela_inicio || event.data_inicio || event.data || start;
+      const eventEnd = event.janela_fim || event.data_fim || eventStart;
+      const overlapKeys = keys.filter((dateKey) => dateKey >= eventStart && dateKey <= eventEnd);
+      const baselineKeys = overlapKeys.length
+        ? dateKeysBetween(addDays(overlapKeys[0], -overlapKeys.length), addDays(overlapKeys[0], -1))
+        : [];
+      const metrics = getMetricSummary(overlapKeys);
+      const baseline = getMetricSummary(baselineKeys);
+      const variation = calculateVariation(metrics.receita_total, baseline.receita_total);
+      return {
+        id: event.id || `${eventStart}-${event.nome_evento || event.titulo || event.tipo_evento || "evento"}`,
+        title: event.nome_evento || event.titulo || "Evento sem nome",
+        type: event.tipo_evento || event.tipo || event.grupo_evento || "Calendario",
+        start: eventStart,
+        end: eventEnd,
+        days: overlapKeys.length,
+        revenue: metrics.receita_total,
+        orders: metrics.pedidos_aprovados,
+        variation,
+        role: variation.direction === "negative" ? "Ofensor" : variation.direction === "positive" ? "Promotor" : "Neutro",
+      };
+    })
+    .sort((a, b) => Number(b.days || 0) - Number(a.days || 0) || b.revenue - a.revenue)
+    .slice(0, 8);
+}
+
+function collectEventsInRange(start, end) {
+  const map = new Map();
+  (state.data.calendario || []).forEach((event) => {
+    const eventStart = event.janela_inicio || event.data_inicio || event.data;
+    const eventEnd = event.janela_fim || event.data_fim || eventStart;
+    if (!rangesOverlap(eventStart, eventEnd, start, end)) return;
+    const key = `${eventStart}-${eventEnd}-${event.nome_evento || event.titulo || event.tipo_evento || ""}`;
+    map.set(key, event);
+  });
+  normalizeManualEventsList(state.data.eventosManuais || []).forEach((event) => {
+    const eventStart = event.data_inicio || event.data;
+    const eventEnd = event.data_fim || eventStart;
+    if (!rangesOverlap(eventStart, eventEnd, start, end)) return;
+    const key = `${eventStart}-${eventEnd}-${event.event_id || event.id || event.titulo || ""}`;
+    map.set(key, event);
+  });
+  return [...map.values()];
 }
 
 function buildLaunchWorkbenchWindows(productWindows, event) {
@@ -4622,6 +4899,13 @@ function formatDecimal(value) {
   return new Intl.NumberFormat("pt-BR", {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
+  }).format(Number(value || 0));
+}
+
+function formatRatio(value) {
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 3,
   }).format(Number(value || 0));
 }
 

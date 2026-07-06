@@ -7,6 +7,7 @@ const DEFAULT_BQ_EXPORT_ENABLED = "1";
 const MANUAL_EVENTS_OUTPUT_PATH = "data/eventos_manuais.json";
 const LAUNCH_MODELS_OUTPUT_PATH = "data/lancamentos_modelos.json";
 const LAUNCH_INVESTMENTS_OUTPUT_PATH = "data/lancamentos_investimentos.json";
+const LAUNCH_PRODUCTS_OUTPUT_PATH = "data/lancamentos_produtos_dia.json";
 const EVENTS_SHEET_NAME = "eventos_manuais";
 const LAUNCH_MODELS_SHEET_NAME = "lancamentos_modelos";
 const LAUNCH_INVESTMENTS_SHEET_NAME = "lancamentos_investimentos";
@@ -125,6 +126,30 @@ const EXPORTS = [
       "FROM ranked",
       "WHERE rank_receita_desc <= 5 OR rank_receita_asc <= 5",
       "ORDER BY data, classificacao, receita_produto DESC",
+    ].join("\n"),
+  },
+  {
+    name: "lancamentos_produtos_dia",
+    outputPath: LAUNCH_PRODUCTS_OUTPUT_PATH,
+    filterByDate: true,
+    location: "southamerica-east1",
+    launchModelFilter: true,
+    sql: [
+      "SELECT",
+      "  order_partition_date_brt AS data,",
+      "  sku,",
+      "  REGEXP_REPLACE(LOWER(COALESCE(item_name, sku)), r'[^a-z0-9]+', '-') AS product_key,",
+      "  COALESCE(item_name, sku) AS product_name,",
+      "  CAST(NULL AS STRING) AS variant_title,",
+      "  SUM(quantity) AS itens_vendidos,",
+      "  SUM(line_net_amount) AS receita_produto,",
+      "  CAST('lancamento' AS STRING) AS classificacao",
+      "FROM `reise-ssot.mart_shared.fct_order_item`",
+      "WHERE",
+      "  is_valid_order = TRUE",
+      "  AND REGEXP_CONTAINS(LOWER(CONCAT(COALESCE(item_name, ''), ' ', COALESCE(sku, ''))), @launch_model_regex)",
+      "GROUP BY 1, 2, 3, 4, 5",
+      "ORDER BY data, receita_produto DESC",
     ].join("\n"),
   },
   {
@@ -308,6 +333,7 @@ function executarExportacaoD1_(options) {
   const endDate = config.endDate || getYesterdayBrt_();
   const startDate = config.startDate || addDaysIso_(endDate, -config.lookbackDays);
   const payloads = {};
+  const launchSheets = getLaunchSheetsForExport_();
   const manifest = {
     generated_at: new Date().toISOString(),
     mode: "apps_script_bigquery_d1",
@@ -322,7 +348,9 @@ function executarExportacaoD1_(options) {
 
   if (config.bqExportEnabled) {
     EXPORTS.forEach((item) => {
-      const result = runBigQuery_(config.bqProjectId, item, startDate, endDate, config.maxBytesBilled, dryRun);
+      const result = runBigQuery_(config.bqProjectId, item, startDate, endDate, config.maxBytesBilled, dryRun, {
+        launchSheets,
+      });
       const fileName = item.outputPath.split("/").pop();
       manifest.files[fileName] = {
         rows: result.rows.length,
@@ -365,7 +393,6 @@ function executarExportacaoD1_(options) {
     console.log("eventos_manuais: EVENTS_SPREADSHEET_ID nao configurado; JSON atual mantido.");
   }
 
-  const launchSheets = getLaunchSheetsForExport_();
   manifest.files["lancamentos_modelos.json"] = {
     rows: launchSheets.models.length,
     bytes_processed: 0,
@@ -459,7 +486,28 @@ function doPost(e) {
   }
 }
 
-function runBigQuery_(projectId, item, startDate, endDate, maxBytesBilled, dryRun) {
+function runBigQuery_(projectId, item, startDate, endDate, maxBytesBilled, dryRun, context) {
+  const queryParameters = [
+    {
+      name: "start_date",
+      parameterType: { type: "DATE" },
+      parameterValue: { value: startDate },
+    },
+    {
+      name: "end_date",
+      parameterType: { type: "DATE" },
+      parameterValue: { value: endDate },
+    },
+  ];
+
+  if (item.launchModelFilter) {
+    queryParameters.push({
+      name: "launch_model_regex",
+      parameterType: { type: "STRING" },
+      parameterValue: { value: buildLaunchModelRegex_(context && context.launchSheets ? context.launchSheets.models : []) },
+    });
+  }
+
   const request = {
     query: buildQuery_(item.sql, item.filterByDate),
     useLegacySql: false,
@@ -468,18 +516,7 @@ function runBigQuery_(projectId, item, startDate, endDate, maxBytesBilled, dryRu
     location: item.location,
     maximumBytesBilled: String(maxBytesBilled),
     parameterMode: "NAMED",
-    queryParameters: [
-      {
-        name: "start_date",
-        parameterType: { type: "DATE" },
-        parameterValue: { value: startDate },
-      },
-      {
-        name: "end_date",
-        parameterType: { type: "DATE" },
-        parameterValue: { value: endDate },
-      },
-    ],
+    queryParameters: queryParameters,
   };
   let response = BigQuery.Jobs.query(request, projectId);
   const bytesProcessed = Number(response.totalBytesProcessed || 0);
@@ -528,6 +565,54 @@ function buildQuery_(sql, filterByDate) {
 
 function removeFinalOrderBy_(sql) {
   return sql.replace(/\nORDER\s+BY\s+[\s\S]*$/i, "").trim();
+}
+
+function buildLaunchModelRegex_(models) {
+  const fallbackTerms = [
+    "monochrome",
+    "avant",
+    "phantom",
+    "gt",
+    "rs8",
+    "rs7",
+    "rs6",
+    "knit",
+    "911",
+    "camisa",
+    "camiseta",
+    "polo",
+    "calca",
+    "calcas",
+    "mochila",
+    "bermuda",
+    "jaqueta",
+    "moletom",
+    "bone",
+    "meia",
+    "cinto",
+  ];
+  const terms = [];
+  (models || []).forEach((model) => {
+    ["modelo", "modelo_id", "linha", "termos_busca", "sku_prefixos", "sku_prefix"].forEach((field) => {
+      String(model[field] || "")
+        .split(/[,;|/\n]+/)
+        .map((term) => term.trim().toLowerCase())
+        .filter(Boolean)
+        .forEach((term) => {
+          terms.push(term);
+          terms.push(term.replace(/\s+/g, ""));
+        });
+    });
+  });
+  const uniqueTerms = [...new Set(terms.concat(fallbackTerms))]
+    .filter((term) => term.length >= 2)
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegex_);
+  return uniqueTerms.join("|");
+}
+
+function escapeRegex_(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function appendRows_(target, fields, rows) {

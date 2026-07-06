@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.21 - 2026-07-06
+
+- Adicionada a exportacao `data/lancamentos_produtos_dia.json` no Apps Script, com vendas por SKU/dia filtradas pelos modelos cadastrados na planilha de lancamentos.
+- A aba `Analise de lancamentos` passa a usar essa base completa quando disponivel, evitando falsos dias zerados causados pelo recorte top/queda de `produtos_dia.json`.
+- Incluidas leituras de aceleracao semana a semana, promotores/ofensores sazonais, canais Midia paga/CRM/UTM e pares por pedido.
+- Adicionado aviso de fonte da curva quando o painel ainda estiver usando o fallback antigo.
+- Atualizado cache bust dos assets para `v=0.5.21`.
+
 ## 0.5.20 - 2026-07-06
 
 - Corrigida a separacao de cor e tamanho na analise de lancamentos.

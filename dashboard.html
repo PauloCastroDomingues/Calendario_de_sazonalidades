@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Calendário Comercial Reise</title>
-    <link rel="stylesheet" href="src/style.css?v=0.5.20" />
+    <link rel="stylesheet" href="src/style.css?v=0.5.21" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="src/app.js?v=0.5.20" defer></script>
+    <script src="src/app.js?v=0.5.21" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -550,6 +550,32 @@
           <article class="chart-card launch-chart-card">
             <h3>Pedidos e itens por dia</h3>
             <canvas id="launchDailyChart" height="220"></canvas>
+          </article>
+        </section>
+
+        <section class="launch-intelligence-grid" aria-label="Leituras executivas de lancamento">
+          <article class="launch-detail-panel launch-intelligence-panel">
+            <div class="section-heading">
+              <span class="eyebrow">Aceleracao</span>
+              <h2>Evolucao semana a semana</h2>
+            </div>
+            <div id="launchAccelerationGrid" class="launch-acceleration-grid"></div>
+          </article>
+
+          <article class="launch-detail-panel launch-intelligence-panel">
+            <div class="section-heading">
+              <span class="eyebrow">Sazonalidade</span>
+              <h2>Promotores e ofensores</h2>
+            </div>
+            <div id="launchSeasonalityList" class="launch-seasonality-list"></div>
+          </article>
+
+          <article class="launch-detail-panel launch-intelligence-panel launch-channel-panel">
+            <div class="section-heading">
+              <span class="eyebrow">Canais</span>
+              <h2>Midia paga, CRM e conversao</h2>
+            </div>
+            <div id="launchChannelBreakdown" class="launch-channel-breakdown"></div>
           </article>
         </section>
 

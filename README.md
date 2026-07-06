@@ -347,8 +347,11 @@ Fontes opcionais para deixar a leitura mais governada, sem exigir ID tecnico:
 
 - `data/lancamentos_modelos.json`: nome do modelo, data de lancamento e observacao.
 - `data/lancamentos_investimentos.json`: nome do modelo, investimento, receita, pedidos e observacao.
+- `data/lancamentos_produtos_dia.json`: vendas por SKU/dia dos modelos cadastrados, usado para curva D0, semanas, cor, tamanho e pares por pedido.
 
-No Apps Script, rode `instalarBaseLancamentos` para criar as abas `lancamentos_modelos` e `lancamentos_investimentos` na mesma planilha usada pelos eventos. Depois use `exportarLancamentos` para publicar apenas esses JSONs, ou `atualizarDadosD1` para publicar junto do snapshot D-1.
+No Apps Script, rode `instalarBaseLancamentos` para criar as abas `lancamentos_modelos` e `lancamentos_investimentos` na mesma planilha usada pelos eventos. Depois use `exportarLancamentos` para publicar apenas esses JSONs de planilha, ou `atualizarDadosD1` para publicar junto do snapshot D-1 e gerar tambem `lancamentos_produtos_dia.json` via BigQuery.
+
+Importante: se `lancamentos_produtos_dia.json` ainda nao existir, a aba usa `produtos_dia.json` como fallback. Esse arquivo e um recorte de top/queda diario e pode gerar dias aparentemente zerados em lancamentos que venderam fora desse recorte.
 
 ## Editar e excluir eventos manuais
 

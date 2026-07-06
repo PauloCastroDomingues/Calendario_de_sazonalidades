@@ -10,6 +10,12 @@ SOURCE_CONFIG = {
     "kpis": {"file": "kpis_dia.json", "label": "KPIs", "date_field": "data", "required": True},
     "funil": {"file": "funil_dia.json", "label": "Funil", "date_field": "data", "required": True},
     "produtos": {"file": "produtos_dia.json", "label": "Produtos", "date_field": "data", "required": True},
+    "lancamentos_produtos": {
+        "file": "lancamentos_produtos_dia.json",
+        "label": "Produtos de lancamento",
+        "date_field": "data",
+        "required": False,
+    },
     "campanhas": {"file": "campanhas_dia.json", "label": "Campanhas", "date_field": "data", "required": True},
     "utms": {"file": "utms_dia.json", "label": "UTMs", "date_field": "data", "required": True},
     "estoque": {"file": "estoque.json", "label": "Estoque", "date_field": None, "required": True},
