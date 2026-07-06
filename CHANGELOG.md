@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.13 - 2026-07-06
+
+- Alterada a selecao de modelos da aba `Analise de lancamentos` para dois dropdowns: primeiro `Tipo de produto`, depois `Modelo`.
+- Ao trocar o tipo, a selecao passa a manter apenas modelos daquele grupo para evitar comparacoes misturadas.
+- Os modelos escolhidos agora aparecem como chips removiveis abaixo dos dropdowns.
+- O botao `Top 3` passa a considerar apenas o tipo de produto selecionado.
+- Atualizado cache bust dos assets para `v=0.5.13`.
+
 ## 0.5.12 - 2026-07-06
 
 - Exibida a data de lancamento cadastrada na planilha diretamente nos cards de modelos da aba `Analise de lancamentos`.

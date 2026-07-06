@@ -195,9 +195,9 @@ const state = {
   launch: {
     eventId: "",
     productKeys: [],
+    productTopic: "",
     launchDate: "",
     windowDays: 90,
-    productSearch: "",
   },
 };
 
@@ -346,26 +346,19 @@ function bindControls() {
     state.launch.windowDays = Number(event.target.value || 90);
     renderLaunchWorkbench();
   });
-  document.getElementById("launchProductSearch").addEventListener("input", (event) => {
-    state.launch.productSearch = event.target.value;
-    renderLaunchProductPicker(collectLaunchProducts());
-  });
-  document.getElementById("launchProductList").addEventListener("click", handleLaunchProductListClick);
+  document.getElementById("launchProductTopicSelect").addEventListener("change", handleLaunchProductTopicChange);
+  document.getElementById("launchProductSelect").addEventListener("change", handleLaunchProductSelectChange);
+  document.getElementById("launchSelectedProductsSummary").addEventListener("click", handleLaunchSelectedProductsClick);
   document.getElementById("launchSelectTopProductsButton").addEventListener("click", () => {
     const products = collectLaunchProducts();
-    const query = normalizeComparableText(state.launch.productSearch || "");
-    const visibleProducts = products.filter((product) => {
-      if (!query) return true;
-      return getLaunchProductSearchText(product).includes(query);
-    });
+    const topic = resolveLaunchProductTopic(products);
+    const visibleProducts = getLaunchProductsByTopic(products, topic);
     state.launch.productKeys = visibleProducts.slice(0, 3).map((product) => product.key);
     renderLaunchProductPicker(products);
     renderLaunchWorkbench();
   });
   document.getElementById("launchClearProductsButton").addEventListener("click", () => {
     state.launch.productKeys = [];
-    state.launch.productSearch = "";
-    document.getElementById("launchProductSearch").value = "";
     renderLaunchProductPicker(collectLaunchProducts());
     renderLaunchWorkbench();
   });
@@ -1445,6 +1438,7 @@ function populateLaunchControls() {
     state.launch.productKeys = matchProductKeysForLaunchEvent(events[0], products);
   }
   if (!state.launch.productKeys.length && products.length) state.launch.productKeys = [products[0].key];
+  resolveLaunchProductTopic(products);
 
   eventSelect.innerHTML = [
     `<option value="">Sem evento vinculado</option>`,
@@ -1460,80 +1454,63 @@ function populateLaunchControls() {
 }
 
 function renderLaunchProductPicker(products) {
-  const list = document.getElementById("launchProductList");
+  const topicSelect = document.getElementById("launchProductTopicSelect");
+  const productSelect = document.getElementById("launchProductSelect");
   const count = document.getElementById("launchSelectedCount");
   const summary = document.getElementById("launchSelectedProductsSummary");
-  const search = document.getElementById("launchProductSearch");
-  if (!list || !count || !summary || !search) return;
-
-  if (search.value !== state.launch.productSearch) search.value = state.launch.productSearch || "";
+  if (!topicSelect || !productSelect || !count || !summary) return;
 
   const selected = products.filter((product) => state.launch.productKeys.includes(product.key));
-  const query = normalizeComparableText(state.launch.productSearch || "");
-  const filtered = products
-    .filter((product) => {
-      if (!query) return true;
-      return getLaunchProductSearchText(product).includes(query);
-    })
-    .slice(0, 80);
+  const groupedProducts = groupLaunchProductsByTopic(products);
+  const activeTopic = resolveLaunchProductTopic(products);
+  const topicProducts = getLaunchProductsByTopic(products, activeTopic);
 
   count.textContent = `${selected.length} selecionado${selected.length === 1 ? "" : "s"}`;
   summary.innerHTML = selected.length
     ? selected
         .slice(0, 6)
-        .map((product) => `<span>${escapeHtml(product.name)}</span>`)
+        .map(
+          (product) =>
+            `<button class="launch-selected-chip" type="button" data-selected-product-key="${escapeHtml(product.key)}">${escapeHtml(product.name)} <span aria-hidden="true">x</span></button>`
+        )
         .join("")
     : `<span>Nenhum modelo selecionado</span>`;
 
-  const groupedProducts = groupLaunchProductsByTopic(filtered);
-  list.innerHTML =
+  topicSelect.innerHTML =
     groupedProducts
-      .map(({ topic, items }) => {
-        const rows = items
-          .map((product) => {
-            const checked = state.launch.productKeys.includes(product.key);
-            return `
-              <button class="launch-product-option${checked ? " is-selected" : ""}" type="button" data-product-key="${escapeHtml(product.key)}" role="option" aria-selected="${checked}">
-                <span class="launch-checkbox" aria-hidden="true">${checked ? "✓" : ""}</span>
-                <span class="launch-product-option-main">
-                  <strong>${escapeHtml(product.name)}</strong>
-                  <small>${escapeHtml(launchProductMetaLabel(product, { includeLaunchDate: false }))}</small>
-                </span>
-                <span class="launch-product-option-meta">
-                  <strong>${formatCompactCurrency(product.revenue)}</strong>
-                  <small>${formatInteger(product.items)} itens</small>
-                  <small class="launch-product-option-date${product.launchDate ? "" : " is-missing"}">${escapeHtml(launchProductDateLabel(product))}</small>
-                </span>
-              </button>
-            `;
-          })
-          .join("");
-        return `
-          <section class="launch-product-topic">
-            <div class="launch-product-topic-title">
-              <strong>${escapeHtml(topic)}</strong>
-              <span>${formatInteger(items.length)} modelo${items.length === 1 ? "" : "s"}</span>
-            </div>
-            ${rows}
-          </section>
-        `;
-      })
-      .join("") || `<div class="launch-product-empty">Nenhum modelo encontrado para essa busca.</div>`;
+      .map(
+        ({ topic, items }) =>
+          `<option value="${escapeHtml(topic)}">${escapeHtml(topic)} - ${formatInteger(items.length)} modelo${items.length === 1 ? "" : "s"}</option>`
+      )
+      .join("");
+  topicSelect.value = activeTopic || "";
+  topicSelect.disabled = !groupedProducts.length;
+
+  productSelect.innerHTML = [
+    `<option value="">${topicProducts.length ? "Selecionar modelo" : "Sem modelos neste tipo"}</option>`,
+    ...topicProducts.map((product) => {
+      const selectedLabel = state.launch.productKeys.includes(product.key) ? "Selecionado - " : "";
+      const label = `${selectedLabel}${product.name} | ${launchProductDateLabel(product)} | ${formatCompactCurrency(product.revenue)}`;
+      return `<option value="${escapeHtml(product.key)}">${escapeHtml(label)}</option>`;
+    }),
+  ].join("");
+  productSelect.value = "";
+  productSelect.disabled = !topicProducts.length;
 }
 
-function getLaunchProductSearchText(product = {}) {
-  return normalizeComparableText(
-    [
-      product.topic,
-      product.name,
-      product.sku,
-      product.productKey,
-      product.key,
-      product.launchDate,
-      ...(product.colorSummary || []).map((item) => item.label),
-      ...(product.sizeSummary || []).map((item) => item.label),
-    ].join(" ")
-  );
+function resolveLaunchProductTopic(products = []) {
+  const groupedProducts = groupLaunchProductsByTopic(products);
+  const topics = groupedProducts.map((group) => group.topic);
+  if (state.launch.productTopic && topics.includes(state.launch.productTopic)) {
+    return state.launch.productTopic;
+  }
+  const selected = products.find((product) => state.launch.productKeys.includes(product.key));
+  state.launch.productTopic = selected?.topic || topics[0] || "";
+  return state.launch.productTopic;
+}
+
+function getLaunchProductsByTopic(products = [], topic = "") {
+  return products.filter((product) => (product.topic || "Outros") === topic);
 }
 
 function groupLaunchProductsByTopic(products = []) {
@@ -1553,10 +1530,18 @@ function groupLaunchProductsByTopic(products = []) {
     .map(([topic, items]) => ({ topic, items }));
 }
 
-function handleLaunchProductListClick(event) {
-  const option = event.target.closest("[data-product-key]");
-  if (!option) return;
-  const key = option.dataset.productKey;
+function handleLaunchProductTopicChange(event) {
+  const products = collectLaunchProducts();
+  state.launch.productTopic = event.target.value || "";
+  const topicKeys = new Set(getLaunchProductsByTopic(products, state.launch.productTopic).map((product) => product.key));
+  state.launch.productKeys = state.launch.productKeys.filter((key) => topicKeys.has(key));
+  renderLaunchProductPicker(products);
+  renderLaunchWorkbench();
+}
+
+function handleLaunchProductSelectChange(event) {
+  const key = event.target.value;
+  if (!key) return;
   const selected = new Set(state.launch.productKeys);
   if (selected.has(key)) {
     selected.delete(key);
@@ -1564,6 +1549,15 @@ function handleLaunchProductListClick(event) {
     selected.add(key);
   }
   state.launch.productKeys = [...selected];
+  renderLaunchProductPicker(collectLaunchProducts());
+  renderLaunchWorkbench();
+}
+
+function handleLaunchSelectedProductsClick(event) {
+  const chip = event.target.closest("[data-selected-product-key]");
+  if (!chip) return;
+  const key = chip.dataset.selectedProductKey;
+  state.launch.productKeys = state.launch.productKeys.filter((item) => item !== key);
   renderLaunchProductPicker(collectLaunchProducts());
   renderLaunchWorkbench();
 }

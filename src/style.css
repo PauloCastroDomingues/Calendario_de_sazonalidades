@@ -1732,6 +1732,22 @@ textarea {
   font-size: 0.86rem;
 }
 
+.launch-product-select-grid {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.45fr) minmax(240px, 1fr);
+  gap: 10px;
+}
+
+.launch-picker-field {
+  display: grid;
+  gap: 6px;
+  color: var(--green-900);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.launch-picker-field select,
 .launch-product-search {
   width: 100%;
   height: 40px;
@@ -1742,6 +1758,11 @@ textarea {
   background: #fff;
 }
 
+.launch-picker-field select:disabled {
+  color: var(--gray-400);
+  background: var(--gray-50);
+}
+
 .launch-selected-summary {
   display: flex;
   flex-wrap: wrap;
@@ -1749,8 +1770,11 @@ textarea {
   min-height: 28px;
 }
 
-.launch-selected-summary span {
+.launch-selected-summary > span,
+.launch-selected-chip {
   display: inline-flex;
+  align-items: center;
+  gap: 6px;
   max-width: 100%;
   border: 1px solid var(--success-border);
   border-radius: 999px;
@@ -1759,6 +1783,15 @@ textarea {
   background: var(--success-bg);
   font-size: 0.72rem;
   font-weight: 820;
+}
+
+.launch-selected-chip {
+  cursor: pointer;
+}
+
+.launch-selected-chip:hover {
+  border-color: rgba(30, 90, 73, 0.32);
+  background: #eef8f1;
 }
 
 .launch-product-list {
@@ -2727,6 +2760,7 @@ td span {
   .intelligence-columns,
   .launch-analysis-list,
   .launch-control-panel,
+  .launch-product-select-grid,
   .launch-product-card-grid,
   .launch-metric-grid,
   .launch-chart-grid,
@@ -2804,6 +2838,7 @@ td span {
   .intelligence-columns,
   .launch-analysis-list,
   .launch-control-panel,
+  .launch-product-select-grid,
   .launch-product-card-grid,
   .launch-metric-grid,
   .launch-chart-grid,
