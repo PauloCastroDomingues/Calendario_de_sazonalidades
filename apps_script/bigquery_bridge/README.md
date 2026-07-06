@@ -130,7 +130,7 @@ Para a aba `Analise de lancamentos`, o dashboard pode usar duas abas adicionais 
 
 1. Rode `instalarBaseLancamentos` no Apps Script.
 2. Preencha a aba `lancamentos_modelos` com o nome do modelo e a data oficial de lancamento.
-3. Preencha a aba `lancamentos_investimentos` com o mesmo nome do modelo, a data de lancamento e os valores de investimento/receita.
+3. Preencha a aba `lancamentos_investimentos` com o mesmo nome do modelo e os valores de investimento/receita.
 4. Rode `exportarLancamentos` para atualizar apenas os JSONs dessas abas.
 5. Rode `atualizarDadosD1` para atualizar BigQuery D-1, eventos e lancamentos no mesmo commit.
 
@@ -146,7 +146,6 @@ Colunas de `lancamentos_investimentos`:
 
 ```text
 modelo
-data_lancamento
 investimento
 receita
 pedidos

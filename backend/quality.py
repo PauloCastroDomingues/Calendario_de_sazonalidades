@@ -23,7 +23,7 @@ SOURCE_CONFIG = {
     "lancamentos_investimentos": {
         "file": "lancamentos_investimentos.json",
         "label": "Investimentos de lancamento",
-        "date_field": "data_lancamento",
+        "date_field": None,
         "required": False,
     },
     "eventos_manuais": {

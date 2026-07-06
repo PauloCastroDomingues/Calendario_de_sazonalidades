@@ -36,7 +36,6 @@ const LAUNCH_MODELS_HEADER = [
 ];
 const LAUNCH_INVESTMENTS_HEADER = [
   "modelo",
-  "data_lancamento",
   "investimento",
   "receita",
   "pedidos",

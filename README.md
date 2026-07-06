@@ -346,7 +346,7 @@ A aba `Analise de lancamentos` trabalha por modelo, nao por SKU isolado. O usuar
 Fontes opcionais para deixar a leitura mais governada, sem exigir ID tecnico:
 
 - `data/lancamentos_modelos.json`: nome do modelo, data de lancamento e observacao.
-- `data/lancamentos_investimentos.json`: nome do modelo, data de lancamento, investimento, receita, pedidos e observacao.
+- `data/lancamentos_investimentos.json`: nome do modelo, investimento, receita, pedidos e observacao.
 
 No Apps Script, rode `instalarBaseLancamentos` para criar as abas `lancamentos_modelos` e `lancamentos_investimentos` na mesma planilha usada pelos eventos. Depois use `exportarLancamentos` para publicar apenas esses JSONs, ou `atualizarDadosD1` para publicar junto do snapshot D-1.
 

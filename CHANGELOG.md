@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.11 - 2026-07-03
+
+- Removido o campo manual de data da aba `Analise de lancamentos`; a data passa a vir do cadastro do modelo.
+- Agrupada a selecao de modelos por topicos como `Tenis`, `Camisas`, `Calcas`, `Mochilas` e demais categorias inferidas pelo nome.
+- Adicionado `Monochrome` como modelo proprio antes da classificacao generica de `RS8`.
+- Simplificada a aba `lancamentos_investimentos` para nao repetir a data de lancamento.
+- Atualizado cache bust dos assets para `v=0.5.11`.
+
 ## 0.5.10 - 2026-07-03
 
 - Simplificadas as abas de lancamentos no Apps Script para preenchimento por nome do modelo e data de lancamento.

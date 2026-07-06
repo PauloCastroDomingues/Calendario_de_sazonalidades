@@ -73,6 +73,7 @@ const FLUCTUATION_METRICS = [
 ];
 
 const LAUNCH_MODEL_PATTERNS = [
+  { pattern: /\bmonochrome\b|\brs\s*8\s*monochrome\b|\brs8monochrome\b/, name: "Monochrome" },
   { pattern: /\brs\s*8\s*avant\b|\brs8avant\b/, name: "RS8 Avant" },
   { pattern: /\brs\s*7\s*avant\b|\brs7avant\b/, name: "RS7 Avant" },
   { pattern: /\brs\s*6\s*avant\b|\brs6avant\b/, name: "RS6 Avant" },
@@ -94,6 +95,20 @@ const LAUNCH_MODEL_PATTERNS = [
   { pattern: /\bmanhattan\b/, name: "Manhattan" },
   { pattern: /\bessential\b/, name: "Essential" },
   { pattern: /\bzurich\b/, name: "Zurich" },
+];
+
+const LAUNCH_TOPIC_RULES = [
+  {
+    label: "Tenis",
+    pattern:
+      /\b(tenis|sneaker|sapatenis|rs8|rs7|rs6|rsx|phantom|macan|munich|manhattan|denver|zurich|knit|911|monochrome)\b/,
+  },
+  { label: "Camisas", pattern: /\b(camisa|camiseta|polo|t\s*shirt|tshirt|tee)\b/ },
+  { label: "Calcas", pattern: /\b(calca|calcas|pants|jeans|jogger)\b/ },
+  { label: "Mochilas", pattern: /\b(mochila|backpack|bag)\b/ },
+  { label: "Bermudas", pattern: /\b(bermuda|short|shorts)\b/ },
+  { label: "Jaquetas", pattern: /\b(jaqueta|jacket|casaco|moletom|hoodie|sweatshirt)\b/ },
+  { label: "Acessorios", pattern: /\b(bone|cap|meia|sock|cinto|carteira|necessaire|mala|acessorio|acessorios)\b/ },
 ];
 
 const LAUNCH_COLOR_CODES = {
@@ -327,10 +342,6 @@ function bindControls() {
   document.getElementById("importManualEventsInput").addEventListener("change", importManualEvents);
   document.getElementById("manualEventsList").addEventListener("click", handleManualEventsListClick);
   document.getElementById("launchEventSelect").addEventListener("change", handleLaunchEventChange);
-  document.getElementById("launchDateInput").addEventListener("change", (event) => {
-    state.launch.launchDate = event.target.value;
-    renderLaunchWorkbench();
-  });
   document.getElementById("launchWindowSelect").addEventListener("change", (event) => {
     state.launch.windowDays = Number(event.target.value || 90);
     renderLaunchWorkbench();
@@ -345,9 +356,7 @@ function bindControls() {
     const query = normalizeComparableText(state.launch.productSearch || "");
     const visibleProducts = products.filter((product) => {
       if (!query) return true;
-      return normalizeComparableText(
-        `${product.name} ${product.sku} ${product.productKey} ${(product.colorSummary || []).map((item) => item.label).join(" ")}`
-      ).includes(query);
+      return getLaunchProductSearchText(product).includes(query);
     });
     state.launch.productKeys = visibleProducts.slice(0, 3).map((product) => product.key);
     renderLaunchProductPicker(products);
@@ -650,6 +659,7 @@ function normalizeLaunchModelConfigList(rows = []) {
         model_key: slug(modelId || modelName),
         data_lancamento: normalizeDateKey(row.data_lancamento || row.launch_date || row.data_inicio || row.data),
         linha: cleanLaunchText(row.linha || ""),
+        topico: cleanLaunchText(row.topico || row.categoria || row.tipo || ""),
         termos_busca: [...new Set(searchTerms)],
         status: cleanLaunchText(row.status || "Ativo"),
         observacao: cleanLaunchText(row.observacao || row.obs || ""),
@@ -1415,7 +1425,6 @@ function handleLaunchEventChange(event) {
   state.launch.eventId = event.target.value;
   const launchEvent = collectLaunchEvents().find((item) => item.id === state.launch.eventId);
   if (launchEvent) {
-    state.launch.launchDate = launchEvent.data_inicio || launchEvent.data || state.launch.launchDate;
     const matchedKeys = matchProductKeysForLaunchEvent(launchEvent, collectLaunchProducts());
     if (matchedKeys.length) state.launch.productKeys = matchedKeys;
   }
@@ -1425,23 +1434,17 @@ function handleLaunchEventChange(event) {
 
 function populateLaunchControls() {
   const eventSelect = document.getElementById("launchEventSelect");
-  const dateInput = document.getElementById("launchDateInput");
   const windowSelect = document.getElementById("launchWindowSelect");
-  if (!eventSelect || !dateInput || !windowSelect) return;
+  if (!eventSelect || !windowSelect) return;
 
   const events = collectLaunchEvents();
   const products = collectLaunchProducts();
 
   if (!state.launch.eventId && events.length) {
     state.launch.eventId = events[0].id;
-    state.launch.launchDate = events[0].data_inicio || events[0].data || state.launch.launchDate;
     state.launch.productKeys = matchProductKeysForLaunchEvent(events[0], products);
   }
   if (!state.launch.productKeys.length && products.length) state.launch.productKeys = [products[0].key];
-  if (!state.launch.launchDate) {
-    const selectedProduct = products.find((product) => state.launch.productKeys.includes(product.key));
-    state.launch.launchDate = selectedProduct?.launchDate || selectedProduct?.firstDate || getDataCutoffKey() || currentDateKey();
-  }
 
   eventSelect.innerHTML = [
     `<option value="">Sem evento vinculado</option>`,
@@ -1452,7 +1455,6 @@ function populateLaunchControls() {
   ].join("");
   eventSelect.value = state.launch.eventId || "";
 
-  dateInput.value = state.launch.launchDate || "";
   windowSelect.value = String(state.launch.windowDays || 90);
   renderLaunchProductPicker(products);
 }
@@ -1471,9 +1473,7 @@ function renderLaunchProductPicker(products) {
   const filtered = products
     .filter((product) => {
       if (!query) return true;
-      return normalizeComparableText(
-        `${product.name} ${product.sku} ${product.productKey} ${(product.colorSummary || []).map((item) => item.label).join(" ")}`
-      ).includes(query);
+      return getLaunchProductSearchText(product).includes(query);
     })
     .slice(0, 80);
 
@@ -1485,25 +1485,70 @@ function renderLaunchProductPicker(products) {
         .join("")
     : `<span>Nenhum modelo selecionado</span>`;
 
+  const groupedProducts = groupLaunchProductsByTopic(filtered);
   list.innerHTML =
-    filtered
-      .map((product) => {
-        const checked = state.launch.productKeys.includes(product.key);
+    groupedProducts
+      .map(({ topic, items }) => {
+        const rows = items
+          .map((product) => {
+            const checked = state.launch.productKeys.includes(product.key);
+            return `
+              <button class="launch-product-option${checked ? " is-selected" : ""}" type="button" data-product-key="${escapeHtml(product.key)}" role="option" aria-selected="${checked}">
+                <span class="launch-checkbox" aria-hidden="true">${checked ? "✓" : ""}</span>
+                <span class="launch-product-option-main">
+                  <strong>${escapeHtml(product.name)}</strong>
+                  <small>${escapeHtml(launchProductMetaLabel(product))}</small>
+                </span>
+                <span class="launch-product-option-meta">
+                  <strong>${formatCompactCurrency(product.revenue)}</strong>
+                  <small>${formatInteger(product.items)} itens</small>
+                </span>
+              </button>
+            `;
+          })
+          .join("");
         return `
-          <button class="launch-product-option${checked ? " is-selected" : ""}" type="button" data-product-key="${escapeHtml(product.key)}" role="option" aria-selected="${checked}">
-            <span class="launch-checkbox" aria-hidden="true">${checked ? "✓" : ""}</span>
-            <span class="launch-product-option-main">
-              <strong>${escapeHtml(product.name)}</strong>
-              <small>${escapeHtml(launchProductMetaLabel(product))}</small>
-            </span>
-            <span class="launch-product-option-meta">
-              <strong>${formatCompactCurrency(product.revenue)}</strong>
-              <small>${formatInteger(product.items)} itens</small>
-            </span>
-          </button>
+          <section class="launch-product-topic">
+            <div class="launch-product-topic-title">
+              <strong>${escapeHtml(topic)}</strong>
+              <span>${formatInteger(items.length)} modelo${items.length === 1 ? "" : "s"}</span>
+            </div>
+            ${rows}
+          </section>
         `;
       })
       .join("") || `<div class="launch-product-empty">Nenhum modelo encontrado para essa busca.</div>`;
+}
+
+function getLaunchProductSearchText(product = {}) {
+  return normalizeComparableText(
+    [
+      product.topic,
+      product.name,
+      product.sku,
+      product.productKey,
+      product.key,
+      ...(product.colorSummary || []).map((item) => item.label),
+      ...(product.sizeSummary || []).map((item) => item.label),
+    ].join(" ")
+  );
+}
+
+function groupLaunchProductsByTopic(products = []) {
+  const groups = new Map();
+  products.forEach((product) => {
+    const topic = product.topic || "Outros";
+    if (!groups.has(topic)) groups.set(topic, []);
+    groups.get(topic).push(product);
+  });
+  const topicOrder = [...LAUNCH_TOPIC_RULES.map((item) => item.label), "Outros"];
+  return [...groups.entries()]
+    .sort(([topicA], [topicB]) => {
+      const indexA = topicOrder.includes(topicA) ? topicOrder.indexOf(topicA) : topicOrder.length;
+      const indexB = topicOrder.includes(topicB) ? topicOrder.indexOf(topicB) : topicOrder.length;
+      return indexA - indexB || String(topicA).localeCompare(String(topicB));
+    })
+    .map(([topic, items]) => ({ topic, items }));
 }
 
 function handleLaunchProductListClick(event) {
@@ -1540,10 +1585,10 @@ function buildLaunchWorkbenchAnalysis() {
   const productKeys = selectedProducts.map((product) => product.key);
   const launchEvent = collectLaunchEvents().find((event) => event.id === state.launch.eventId) || null;
   const launchDate =
-    state.launch.launchDate ||
-    launchEvent?.data_inicio ||
     selectedProducts[0]?.launchDate ||
     selectedProducts[0]?.firstDate ||
+    launchEvent?.data_inicio ||
+    state.launch.launchDate ||
     getDataCutoffKey() ||
     currentDateKey();
   const windowDays = Number(state.launch.windowDays || 90);
@@ -1854,6 +1899,7 @@ function collectLaunchProducts() {
       sku: row.sku || "",
       productKey: row.product_key || "",
       name: identity.name,
+      topic: identity.topic || inferLaunchProductTopic(row, identity.name),
       launchDate: identity.config?.data_lancamento || "",
       config: identity.config || null,
       firstDate: row.data || "",
@@ -1867,6 +1913,7 @@ function collectLaunchProducts() {
     current.sku = current.sku || row.sku || "";
     current.productKey = current.productKey || row.product_key || "";
     current.name = current.name || identity.name;
+    current.topic = current.topic || identity.topic || inferLaunchProductTopic(row, identity.name);
     current.launchDate = current.launchDate || identity.config?.data_lancamento || "";
     current.firstDate = !current.firstDate || row.data < current.firstDate ? row.data : current.firstDate;
     current.lastDate = !current.lastDate || row.data > current.lastDate ? row.data : current.lastDate;
@@ -1886,6 +1933,7 @@ function collectLaunchProducts() {
       sku: "",
       productKey: "",
       name: config.modelo,
+      topic: config.topico || inferLaunchProductTopic({}, config.modelo),
       launchDate: config.data_lancamento || "",
       config,
       firstDate: config.data_lancamento || "",
@@ -1935,18 +1983,31 @@ function launchModelIdentity(row = {}, configs = []) {
     return config.termos_busca.some((term) => term && text.includes(term));
   });
   if (matchedConfig) {
-    return { key: matchedConfig.model_key, name: matchedConfig.modelo, config: matchedConfig };
+    return {
+      key: matchedConfig.model_key,
+      name: matchedConfig.modelo,
+      topic: matchedConfig.topico || inferLaunchProductTopic(row, matchedConfig.modelo),
+      config: matchedConfig,
+    };
   }
 
   const pattern = LAUNCH_MODEL_PATTERNS.find((item) => item.pattern.test(text));
   const name = pattern?.name || inferLaunchFallbackModelName(row);
-  return { key: slug(name), name, config: null };
+  return { key: slug(name), name, topic: inferLaunchProductTopic(row, name), config: null };
 }
 
 function inferLaunchFallbackModelName(row = {}) {
   const rawName = cleanLaunchText(row.product_name || row.product_key || row.sku || "Modelo sem nome");
   const beforeVariant = rawName.split(" - ")[0].trim();
   return beforeVariant || rawName;
+}
+
+function inferLaunchProductTopic(row = {}, modelName = "") {
+  const text = normalizeComparableText(
+    [modelName, row.product_name, row.product_key, row.sku, row.product_type, row.tipo, row.categoria].join(" ")
+  );
+  const rule = LAUNCH_TOPIC_RULES.find((item) => item.pattern.test(text));
+  return rule?.label || "Outros";
 }
 
 function parseLaunchVariant(row = {}) {
