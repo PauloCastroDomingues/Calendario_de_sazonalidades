@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.17 - 2026-07-06
+
+- Movido o painel `Analise e comparacao de lancamentos` para dentro da aba `Analise de lancamentos`.
+- A aba de lancamentos passa a concentrar selecao, insights, metricas, curvas, janelas, itens e aquisicao no mesmo fluxo.
+- Removido o bloco de lancamentos da area executiva do calendario para evitar analises espalhadas.
+- Atualizado cache bust dos assets para `v=0.5.17`.
+
 ## 0.5.16 - 2026-07-06
 
 - Movida a tabela grande de itens da aba `Analise de lancamentos` para um drawer lateral.

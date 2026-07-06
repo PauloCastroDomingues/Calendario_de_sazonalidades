@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Calendário Comercial Reise</title>
-    <link rel="stylesheet" href="src/style.css?v=0.5.16" />
+    <link rel="stylesheet" href="src/style.css?v=0.5.17" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="src/app.js?v=0.5.16" defer></script>
+    <script src="src/app.js?v=0.5.17" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -382,14 +382,6 @@
           </div>
         </div>
 
-        <div id="launchAnalysisPanel" class="launch-analysis-panel" aria-label="Analise de lancamentos" hidden>
-          <div class="readiness-heading">
-            <h3>Analise e comparacao de lancamentos</h3>
-            <span>Baseline anterior, produto, midia, UTM e janelas D+</span>
-          </div>
-          <div id="launchAnalysisList" class="launch-analysis-list"></div>
-        </div>
-
         <div class="readiness-playbook" aria-label="Prontidao sazonal">
           <div class="readiness-heading">
             <h3>Prontidao sazonal</h3>
@@ -493,6 +485,14 @@
             <p>Selecione um ou mais modelos; a data vem do cadastro do modelo e a curva detalha vendas, cores, tamanhos, mídia, UTM, ticket e clientes.</p>
           </div>
           <span id="launchWorkbenchStatus" class="comparison-badge">Cache D-1</span>
+        </div>
+
+        <div id="launchAnalysisPanel" class="launch-analysis-panel launch-analysis-workbench-panel" aria-label="Analise de lancamentos" hidden>
+          <div class="readiness-heading">
+            <h3>Analise e comparacao de lancamentos</h3>
+            <span>Baseline anterior, produto, midia, UTM e janelas D+</span>
+          </div>
+          <div id="launchAnalysisList" class="launch-analysis-list"></div>
         </div>
 
         <div class="launch-control-panel">

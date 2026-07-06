@@ -1501,6 +1501,15 @@ textarea {
   padding-top: 16px;
 }
 
+.launch-analysis-workbench-panel {
+  margin-top: 0;
+  border: 1px solid var(--gray-100);
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
 .launch-analysis-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
