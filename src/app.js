@@ -2095,10 +2095,16 @@ function splitLaunchTerms(value = "") {
 
 function launchModelIdentity(row = {}, configs = []) {
   const text = normalizeComparableText(`${row.product_name || ""} ${row.product_key || ""} ${row.sku || ""}`);
-  const matchedConfig = configs.find((config) => {
-    if (!config.termos_busca?.length) return false;
-    return config.termos_busca.some((term) => term && text.includes(term));
-  });
+  const matchedConfig = configs
+    .map((config) => {
+      const matchedTerms = (config.termos_busca || []).filter((term) => term && text.includes(term));
+      return {
+        config,
+        score: matchedTerms.reduce((max, term) => Math.max(max, term.length), 0),
+      };
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score)[0]?.config;
   if (matchedConfig) {
     const configuredModel = launchConfiguredModelIdentity(matchedConfig);
     return {

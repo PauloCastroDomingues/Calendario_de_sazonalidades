@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.19 - 2026-07-06
+
+- Corrigido o matching de modelos de lancamento quando um produto bate em mais de uma familia comercial.
+- `RS8 Avant Monochrome` passa a ser classificado como `Monochrome`, priorizando o termo de busca mais especifico da planilha.
+- Atualizado cache bust dos assets para `v=0.5.19`.
+
 ## 0.5.18 - 2026-07-06
 
 - Ajustada a aba `Analise de lancamentos` para comparar modelos por D0 relativo de cada produto.
