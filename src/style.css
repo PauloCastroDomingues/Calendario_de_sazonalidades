@@ -2165,11 +2165,13 @@ textarea {
 .launch-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr);
+  align-items: start;
   gap: 12px;
 }
 
 .launch-detail-panel {
   display: grid;
+  align-self: start;
   gap: 12px;
   min-width: 0;
   border: 1px solid var(--gray-100);

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.15 - 2026-07-06
+
+- Corrigido o layout da area `Janelas` na aba `Analise de lancamentos` para nao esticar quando a tabela de modelo/cor/tamanho tem muitas linhas.
+- Os paineis de detalhe agora ficam alinhados ao topo, mantendo cada card na propria altura.
+- Atualizado cache bust dos assets para `v=0.5.15`.
+
 ## 0.5.14 - 2026-07-06
 
 - Reagrupada a selecao de tenis por familia comercial de modelo, como `Monochrome`, `GT`, `Avant` e `Phantom`.
