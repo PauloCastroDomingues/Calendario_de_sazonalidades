@@ -15,6 +15,8 @@ SOURCE_CONFIG = {
         "label": "Produtos de lancamento",
         "date_field": "data",
         "required": False,
+        "required_when": "lancamentos_modelos",
+        "warn_only": True,
     },
     "campanhas": {"file": "campanhas_dia.json", "label": "Campanhas", "date_field": "data", "required": True},
     "utms": {"file": "utms_dia.json", "label": "UTMs", "date_field": "data", "required": True},
@@ -31,6 +33,8 @@ SOURCE_CONFIG = {
         "label": "Investimentos de lancamento",
         "date_field": None,
         "required": False,
+        "required_when": "lancamentos_modelos",
+        "warn_only": True,
     },
     "eventos_manuais": {
         "file": "eventos_manuais.json",
@@ -65,14 +69,18 @@ def build_data_quality(
         date_min, date_max = date_bounds(rows, config.get("date_field"))
         filename = str(config["file"])
         manifest_item = manifest_files.get(filename) if isinstance(manifest_files.get(filename), dict) else {}
+        effective_required = bool(config["required"]) or bool(
+            config.get("required_when") and normalize_rows(payload.get(str(config["required_when"])))
+        )
         status = resolve_source_status(
             key=key,
             rows=rows,
             date_max=date_max,
             file_state=str(file_status.get(filename) or "unknown"),
-            required=bool(config["required"]),
+            required=effective_required,
             expected_d1=expected_d1,
         )
+        warning_only = bool(config.get("warn_only"))
 
         sources.append(
             {
@@ -81,7 +89,7 @@ def build_data_quality(
                 "label": config["label"],
                 "rows": len(rows),
                 "status": status,
-                "required": bool(config["required"]),
+                "required": effective_required,
                 "date_min": date_min.isoformat() if date_min else None,
                 "date_max": date_max.isoformat() if date_max else None,
                 "manifest_rows": int(number(manifest_item.get("rows"))) if manifest_item else None,
@@ -92,7 +100,7 @@ def build_data_quality(
         if status == "missing":
             alerts.append(
                 alert(
-                    "critico",
+                    "atencao" if warning_only else "critico",
                     f"{config['label']} ausente",
                     f"O arquivo {filename} nao foi encontrado no cache atual.",
                 )
@@ -100,7 +108,7 @@ def build_data_quality(
         elif status == "empty":
             alerts.append(
                 alert(
-                    "critico",
+                    "atencao" if warning_only else "critico",
                     f"{config['label']} vazio",
                     f"O arquivo {filename} existe, mas nao trouxe linhas para o dashboard.",
                 )
@@ -123,6 +131,7 @@ def build_data_quality(
             )
 
     alerts.extend(build_freshness_alerts(manifest, payload, expected_d1))
+    alerts.extend(build_launch_completeness_alerts(payload, source_status, manifest_files))
     alerts.extend(build_manual_event_alerts(normalize_rows(payload.get("eventos_manuais"))))
 
     critical_count = sum(1 for item in alerts if item["severity"] == "critico")
@@ -165,7 +174,7 @@ def resolve_source_status(
         return "empty"
     if not rows:
         return "ok"
-    if key in {"estoque", "metas", "eventos_manuais", "calendario"}:
+    if key in {"estoque", "metas", "eventos_manuais", "calendario", "lancamentos_modelos", "lancamentos_investimentos"}:
         return "ok"
     if not date_max:
         return "no_date"
@@ -206,6 +215,41 @@ def build_freshness_alerts(manifest: dict[str, Any], payload: dict[str, Any], ex
 
     if manifest.get("bq_export_enabled") is False:
         alerts.append(alert("info", "BigQuery pausado", "BQ_EXPORT_ENABLED=0; snapshots analiticos ficam no ultimo commit."))
+
+    return alerts
+
+
+def build_launch_completeness_alerts(
+    payload: dict[str, Any],
+    source_status: dict[str, Any],
+    manifest_files: dict[str, Any],
+) -> list[dict[str, str]]:
+    alerts: list[dict[str, str]] = []
+    models = normalize_rows(payload.get("lancamentos_modelos"))
+    campaigns = normalize_rows(payload.get("campanhas"))
+    _ = source_status
+
+    if models and "lancamentos_produtos_dia.json" not in manifest_files:
+        alerts.append(
+            alert(
+                "atencao",
+                "Manifesto sem lancamentos_produtos",
+                "A ultima carga D-1 nao registrou o arquivo lancamentos_produtos_dia.json; rode o Apps Script atualizado.",
+            )
+        )
+
+    campaign_rows_with_spend = [row for row in campaigns if number(row.get("investimento")) > 0]
+    if campaign_rows_with_spend:
+        attributed_revenue = sum(number(row.get("receita_atribuida")) for row in campaigns)
+        attributed_orders = sum(number(row.get("pedidos_atribuidos")) for row in campaigns)
+        if attributed_revenue <= 0 and attributed_orders <= 0:
+            alerts.append(
+                alert(
+                    "atencao",
+                    "Campanhas sem atribuicao",
+                    "campanhas_dia.json tem investimento, mas receita_atribuida/pedidos_atribuidos estao zerados.",
+                )
+            )
 
     return alerts
 

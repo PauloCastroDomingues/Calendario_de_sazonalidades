@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.24 - 2026-07-06
+
+- Corrigida a origem de produtos e lancamentos para a bridge `mart_growth_us.shopify_sales_by_sku_daily_v`, evitando fallback parcial de top/queda para curvas de D+0.
+- Adicionado export completo `data/lancamentos_produtos_dia.json` e query espelho `queries/lancamentos_produtos_dia.sql`.
+- Campanhas passam a tentar preencher `receita_atribuida`, `pedidos_atribuidos` e `roas` por correspondencia de UTM campaign.
+- Qualidade dos dados agora sinaliza quando ha modelos de lancamento cadastrados, mas a carga D-1 ainda nao gerou a base completa de lancamentos ou investimentos.
+- Atualizado cache bust dos assets para `v=0.5.24`.
+
 ## 0.5.23 - 2026-07-06
 
 - Corrigida a curva de faturamento acumulado de lancamentos para nao tratar ausencia de linha no recorte `produtos_dia.json` como faturamento zero.

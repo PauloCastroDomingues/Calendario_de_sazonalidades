@@ -1,14 +1,13 @@
 WITH produtos AS (
   SELECT
-    order_partition_date_brt AS data,
+    data,
     sku,
     REGEXP_REPLACE(LOWER(COALESCE(item_name, sku)), r'[^a-z0-9]+', '-') AS product_key,
     COALESCE(item_name, sku) AS product_name,
     CAST(NULL AS STRING) AS variant_title,
-    SUM(quantity) AS itens_vendidos,
-    SUM(line_net_amount) AS receita_produto
-  FROM `reise-ssot.mart_shared.fct_order_item`
-  WHERE is_valid_order = TRUE
+    SUM(units) AS itens_vendidos,
+    SUM(net_revenue) AS receita_produto
+  FROM `reise-ssot.mart_growth_us.shopify_sales_by_sku_daily_v`
   GROUP BY 1, 2, 3, 4, 5
 ),
 ranked AS (
@@ -31,5 +30,8 @@ SELECT
     WHEN rank_receita_asc <= 5 THEN 'queda'
   END AS classificacao
 FROM ranked
-WHERE rank_receita_desc <= 5 OR rank_receita_asc <= 5
+WHERE
+  rank_receita_desc <= 5
+  OR rank_receita_asc <= 5
+  OR REGEXP_CONTAINS(LOWER(CONCAT(COALESCE(product_name, ''), ' ', COALESCE(sku, ''))), @launch_model_regex)
 ORDER BY data, classificacao, receita_produto DESC;
