@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.18 - 2026-07-06
+
+- Ajustada a aba `Analise de lancamentos` para comparar modelos por D0 relativo de cada produto.
+- Cada modelo passa a usar sua propria `data_lancamento` como D0 na curva acumulada, cards de modelo, janelas D+ e tabela de itens.
+- O insight da analise agora informa quando a comparacao esta alinhada por dias relativos entre lancamentos.
+- Atualizado cache bust dos assets para `v=0.5.18`.
+
 ## 0.5.17 - 2026-07-06
 
 - Movido o painel `Analise e comparacao de lancamentos` para dentro da aba `Analise de lancamentos`.

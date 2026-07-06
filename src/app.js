@@ -1618,32 +1618,27 @@ function renderLaunchWorkbench() {
 function buildLaunchWorkbenchAnalysis() {
   const products = collectLaunchProducts();
   const selectedProducts = products.filter((product) => state.launch.productKeys.includes(product.key));
-  const productKeys = selectedProducts.map((product) => product.key);
   const launchEvent = collectLaunchEvents().find((event) => event.id === state.launch.eventId) || null;
-  const launchDate =
-    selectedProducts[0]?.launchDate ||
-    selectedProducts[0]?.firstDate ||
-    launchEvent?.data_inicio ||
-    state.launch.launchDate ||
-    getDataCutoffKey() ||
-    currentDateKey();
   const windowDays = Number(state.launch.windowDays || 90);
   const cutoff = getDataCutoffKey();
-  const plannedEnd = addDays(launchDate, windowDays - 1);
-  const actualEnd = cutoff && cutoff < plannedEnd ? cutoff : plannedEnd;
-  const hasActuals = Boolean(launchDate && actualEnd && actualEnd >= launchDate);
-  const actualKeys = hasActuals ? dateKeysBetween(launchDate, actualEnd) : [];
-  const baselineKeys = actualKeys.length ? dateKeysBetween(addDays(launchDate, -actualKeys.length), addDays(launchDate, -1)) : [];
-  const productRows = filterProductRowsByKeys(actualKeys, productKeys);
-  const baselineProductRows = filterProductRowsByKeys(baselineKeys, productKeys);
+  const fallbackLaunchDate = launchEvent?.data_inicio || state.launch.launchDate || cutoff || currentDateKey();
+  const productWindows = buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbackLaunchDate);
+  const launchDate = productWindows[0]?.launchDate || fallbackLaunchDate;
+  const plannedEnd = maxDateKey(productWindows.map((item) => item.plannedEnd)) || addDays(launchDate, windowDays - 1);
+  const actualEnd = maxDateKey(productWindows.map((item) => item.actualEnd)) || plannedEnd;
+  const hasActuals = productWindows.some((item) => item.actualKeys.length);
+  const actualKeys = uniqueDateKeys(productWindows.flatMap((item) => item.actualKeys));
+  const baselineKeys = uniqueDateKeys(productWindows.flatMap((item) => item.baselineKeys));
+  const productRows = filterProductRowsByWindows(productWindows, "actualKeys");
+  const baselineProductRows = filterProductRowsByWindows(productWindows, "baselineKeys");
   const productSummary = summarizeLaunchWorkbenchProducts(productRows, selectedProducts);
   const baselineProductSummary = summarizeLaunchWorkbenchProducts(baselineProductRows, selectedProducts);
   const metrics = getMetricSummary(actualKeys);
   const baselineMetrics = getMetricSummary(baselineKeys);
   const media = summarizeLaunchWorkbenchMedia(actualKeys, launchEvent);
   const planning = summarizeLaunchPlanning(actualKeys, selectedProducts);
-  const windows = buildLaunchWorkbenchWindows(launchDate, cutoff, productKeys, launchEvent);
-  const curve = buildLaunchCurve(actualKeys, selectedProducts);
+  const windows = buildLaunchWorkbenchWindows(productWindows, launchEvent);
+  const curve = buildLaunchCurve(productWindows, selectedProducts);
 
   return {
     launchEvent,
@@ -1655,6 +1650,7 @@ function buildLaunchWorkbenchAnalysis() {
     hasActuals,
     actualKeys,
     baselineKeys,
+    productWindows,
     selectedProducts,
     productSummary,
     baselineProductSummary,
@@ -1667,6 +1663,30 @@ function buildLaunchWorkbenchAnalysis() {
     revenueVariation: calculateVariation(productSummary.revenue, baselineProductSummary.revenue),
     contextRevenueVariation: calculateVariation(metrics.receita_total, baselineMetrics.receita_total),
   };
+}
+
+function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbackLaunchDate) {
+  return selectedProducts.map((product) => {
+    const launchDate = product.launchDate || product.firstDate || fallbackLaunchDate;
+    const plannedEnd = addDays(launchDate, windowDays - 1);
+    const actualEnd = cutoff && cutoff < plannedEnd ? cutoff : plannedEnd;
+    const actualKeys = launchDate && actualEnd >= launchDate ? dateKeysBetween(launchDate, actualEnd) : [];
+    const baselineKeys = actualKeys.length ? dateKeysBetween(addDays(launchDate, -actualKeys.length), addDays(launchDate, -1)) : [];
+    return {
+      product,
+      productKey: product.key,
+      launchDate,
+      plannedEnd,
+      actualEnd,
+      windowDays,
+      actualKeys,
+      baselineKeys,
+    };
+  });
+}
+
+function filterProductRowsByWindows(productWindows, keyField) {
+  return productWindows.flatMap((window) => filterProductRowsByKeys(window[keyField] || [], [window.productKey]));
 }
 
 function renderLaunchInsight(analysis) {
@@ -1691,12 +1711,18 @@ function renderLaunchInsight(analysis) {
   const productVariation =
     analysis.revenueVariation.percentChange === null ? "sem baseline do produto" : analysis.revenueVariation.label;
   const actualText = analysis.hasActuals
-    ? `${formatShortDate(analysis.launchDate)} a ${formatShortDate(analysis.actualEnd)}`
+    ? analysis.selectedProducts.length > 1
+      ? `D0 a D+${Math.max(0, analysis.curve.labels.length - 1)} por modelo`
+      : `${formatShortDate(analysis.launchDate)} a ${formatShortDate(analysis.actualEnd)}`
     : `lancamento futuro em ${formatShortDate(analysis.launchDate)}`;
+  const relativeNote =
+    analysis.selectedProducts.length > 1
+      ? " Cada modelo usa a propria data de lancamento como D0 para comparar desempenho em dias relativos."
+      : "";
 
   target.innerHTML = `
     <strong>${escapeHtml(eventName)} · ${escapeHtml(productLabel)}</strong>
-    <span>Janela analisada: ${actualText}. Modelo vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.</span>
+    <span>Janela analisada: ${actualText}.${relativeNote} Modelo vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.</span>
   `;
 }
 
@@ -1780,12 +1806,16 @@ function renderLaunchProductCards(analysis) {
   target.innerHTML = analysis.selectedProducts
     .slice(0, 8)
     .map((product, index) => {
+      const productWindow = analysis.productWindows.find((item) => item.productKey === product.key) || {
+        actualKeys: analysis.actualKeys,
+        baselineKeys: analysis.baselineKeys,
+      };
       const current = summarizeLaunchWorkbenchProducts(
-        filterProductRowsByKeys(analysis.actualKeys, [product.key]),
+        filterProductRowsByKeys(productWindow.actualKeys, [product.key]),
         [product]
       );
       const baseline = summarizeLaunchWorkbenchProducts(
-        filterProductRowsByKeys(analysis.baselineKeys, [product.key]),
+        filterProductRowsByKeys(productWindow.baselineKeys, [product.key]),
         [product]
       );
       const currentItem = current.byProduct[0] || { revenue: 0, items: 0 };
@@ -2373,14 +2403,16 @@ function matchesLaunchTerm(row, terms, fields) {
   return terms.some((term) => text.includes(term));
 }
 
-function buildLaunchWorkbenchWindows(launchDate, cutoff, productKeys, event) {
+function buildLaunchWorkbenchWindows(productWindows, event) {
+  const selectedProducts = productWindows.map((window) => window.product);
   return [1, 7, 15, 30, 90].map((days) => {
-    const end = addDays(launchDate, days - 1);
-    const actualEnd = cutoff && cutoff < end ? cutoff : end;
-    const keys = actualEnd >= launchDate ? dateKeysBetween(launchDate, actualEnd) : [];
-    const products = summarizeLaunchWorkbenchProducts(filterProductRowsByKeys(keys, productKeys), []);
-    const metrics = getMetricSummary(keys);
-    const media = summarizeLaunchWorkbenchMedia(keys, event);
+    const productRows = productWindows.flatMap((window) =>
+      filterProductRowsByKeys(window.actualKeys.slice(0, days), [window.productKey])
+    );
+    const contextKeys = uniqueDateKeys(productWindows.flatMap((window) => window.actualKeys.slice(0, days)));
+    const products = summarizeLaunchWorkbenchProducts(productRows, selectedProducts);
+    const metrics = getMetricSummary(contextKeys);
+    const media = summarizeLaunchWorkbenchMedia(contextKeys, event);
     return {
       label: days === 1 ? "D0" : `D+${days - 1}`,
       productRevenue: products.revenue,
@@ -2391,18 +2423,32 @@ function buildLaunchWorkbenchWindows(launchDate, cutoff, productKeys, event) {
   });
 }
 
-function buildLaunchCurve(dateKeys, selectedProducts) {
-  const productKeys = selectedProducts.map((product) => product.key);
-  const labels = dateKeys.map((dateKey, index) => `D+${index}`);
-  const dailyItems = dateKeys.map((dateKey) =>
-    filterProductRowsByKeys([dateKey], productKeys).reduce((sum, row) => sum + Number(row.itens_vendidos || 0), 0)
+function buildLaunchCurve(productWindows, selectedProducts) {
+  const maxDays = Math.max(0, ...productWindows.map((window) => window.actualKeys.length));
+  const labels = Array.from({ length: maxDays }, (_, index) => `D+${index}`);
+  const dailyItems = labels.map((_, index) =>
+    productWindows.reduce((sum, window) => {
+      const dateKey = window.actualKeys[index];
+      if (!dateKey) return sum;
+      const items = filterProductRowsByKeys([dateKey], [window.productKey]).reduce(
+        (rowSum, row) => rowSum + Number(row.itens_vendidos || 0),
+        0
+      );
+      return sum + items;
+    }, 0)
   );
-  const dailyOrders = dateKeys.map((dateKey) => getKpi(dateKey).pedidos_aprovados);
+  const dailyOrders = labels.map((_, index) => {
+    const keys = uniqueDateKeys(productWindows.map((window) => window.actualKeys[index]).filter(Boolean));
+    return getMetricSummary(keys).pedidos_aprovados;
+  });
   const revenueSeries = selectedProducts.slice(0, 6).map((product) => {
     let cumulative = 0;
+    const productWindow = productWindows.find((window) => window.productKey === product.key);
     return {
       label: product.name,
-      values: dateKeys.map((dateKey) => {
+      values: labels.map((_, index) => {
+        const dateKey = productWindow?.actualKeys[index];
+        if (!dateKey) return null;
         const dayRevenue = filterProductRowsByKeys([dateKey], [product.key]).reduce(
           (sum, row) => sum + Number(row.receita_produto || 0),
           0
@@ -3665,6 +3711,14 @@ function dateKeysBetween(start, end) {
     current.setDate(current.getDate() + 1);
   }
   return keys;
+}
+
+function uniqueDateKeys(keys = []) {
+  return [...new Set(keys.filter(Boolean))].sort();
+}
+
+function maxDateKey(keys = []) {
+  return uniqueDateKeys(keys).pop() || "";
 }
 
 function rangesOverlap(start, end, rangeStart, rangeEnd) {
