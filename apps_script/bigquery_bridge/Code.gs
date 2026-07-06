@@ -37,6 +37,11 @@ const LAUNCH_MODELS_HEADER = [
   "data_oficial",
   "day_zero_base",
   "confiabilidade",
+  "modelo_id",
+  "linha",
+  "termos_busca",
+  "sku_prefixos",
+  "status",
 ];
 const LAUNCH_INVESTMENTS_HEADER = [
   "modelo",

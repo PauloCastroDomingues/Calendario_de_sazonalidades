@@ -100,12 +100,21 @@ const LAUNCH_MODEL_COLOR_PALETTE = [
   "#8b6424",
 ];
 const CHART_FALLBACK_COLORS = ["#1e5a49", "#b98d43", "#a3483f", "#16463a", "#12372f", "#8b6424"];
+const LAUNCH_RELATIVE_WINDOWS = [
+  { label: "D0", relativeDay: 0, days: 1 },
+  { label: "D+7", relativeDay: 7, days: 8 },
+  { label: "D+15", relativeDay: 15, days: 16 },
+  { label: "D+30", relativeDay: 30, days: 31 },
+  { label: "D+90", relativeDay: 90, days: 91 },
+];
 
 const LAUNCH_MODEL_ALIAS_TERMS = {
   monochrome: [
+    "Monochrome",
     "RS8 Avant Monochrome",
-    "RS8Avant Monochrome",
+    "RS8AVANT Monochrome",
     "RS8AvantMonochrome",
+    "RS8Avant Monochrome",
     "RS8 Avant Mono",
     "RS8Avant Mono",
     "RS8AvantMono",
@@ -250,7 +259,7 @@ const state = {
     productKeys: [],
     productTopic: "",
     launchDate: "",
-    windowDays: 90,
+    windowDays: 91,
   },
 };
 
@@ -397,7 +406,7 @@ function bindControls() {
   document.getElementById("manualEventsList").addEventListener("click", handleManualEventsListClick);
   document.getElementById("launchEventSelect").addEventListener("change", handleLaunchEventChange);
   document.getElementById("launchWindowSelect").addEventListener("change", (event) => {
-    state.launch.windowDays = Number(event.target.value || 90);
+    state.launch.windowDays = Number(event.target.value || 91);
     renderLaunchWorkbench();
   });
   document.getElementById("launchProductTopicSelect").addEventListener("change", handleLaunchProductTopicChange);
@@ -693,9 +702,9 @@ function normalizeLaunchModelConfigList(rows = []) {
     .map((row) => {
       const modelName = cleanLaunchText(row.modelo || row.model || row.nome_modelo || row.nome || row.linha || "");
       const modelId = cleanLaunchText(row.modelo_id || row.model_id || modelName);
+      const registeredLaunchDate = normalizeDateKey(row.data_lancamento || row.launch_date || row.data_inicio || row.data);
       const officialLaunchDate = normalizeDateKey(row.data_oficial || row.lancamento_oficial || row.official_launch_date || "");
       const dayZeroBase = normalizeDateKey(row.day_zero_base || row.data_base || row.data_lancamento_base || "");
-      const launchDate = dayZeroBase || normalizeDateKey(row.data_lancamento || row.launch_date || row.data_inicio || row.data);
       const searchTerms = [
         modelName,
         row.linha,
@@ -713,9 +722,9 @@ function normalizeLaunchModelConfigList(rows = []) {
         modelo_id: modelId,
         modelo: modelName,
         model_key: slug(modelId || modelName),
-        data_lancamento: launchDate,
+        data_lancamento: registeredLaunchDate,
         data_oficial: officialLaunchDate,
-        day_zero_base: dayZeroBase || launchDate,
+        day_zero_base: dayZeroBase,
         linha: cleanLaunchText(row.linha || ""),
         topico: cleanLaunchText(row.topico || row.categoria || row.tipo || ""),
         termos_busca: [...new Set(searchTerms)],
@@ -1516,7 +1525,7 @@ function populateLaunchControls() {
   ].join("");
   eventSelect.value = state.launch.eventId || "";
 
-  windowSelect.value = String(state.launch.windowDays || 90);
+  windowSelect.value = String(state.launch.windowDays || 91);
   renderLaunchProductPicker(products);
 }
 
@@ -1690,14 +1699,14 @@ function buildLaunchWorkbenchAnalysis() {
   const products = collectLaunchProducts();
   const selectedProducts = products.filter((product) => state.launch.productKeys.includes(product.key));
   const launchEvent = collectLaunchEvents().find((event) => event.id === state.launch.eventId) || null;
-  const windowDays = Number(state.launch.windowDays || 90);
+  const windowDays = Number(state.launch.windowDays || 91);
   const cutoff = getDataCutoffKey();
   const fallbackLaunchDate = launchEvent?.data_inicio || state.launch.launchDate || cutoff || currentDateKey();
   const comparisonProducts = resolveLaunchComparisonProducts(products, selectedProducts);
   const productWindows = buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbackLaunchDate);
   const comparisonWindows = buildLaunchProductWindows(comparisonProducts, windowDays, cutoff, fallbackLaunchDate);
   const benchmarkProducts = products.filter((product) => product.config || product.launchDate || state.launch.productKeys.includes(product.key));
-  const benchmarkWindows = buildLaunchProductWindows(benchmarkProducts, 90, cutoff, fallbackLaunchDate);
+  const benchmarkWindows = buildLaunchProductWindows(benchmarkProducts, 91, cutoff, fallbackLaunchDate);
   const launchDate = productWindows[0]?.launchDate || fallbackLaunchDate;
   const plannedEnd = maxDateKey(productWindows.map((item) => item.plannedEnd)) || addDays(launchDate, windowDays - 1);
   const actualEnd = maxDateKey(productWindows.map((item) => item.actualEnd)) || plannedEnd;
@@ -1761,6 +1770,7 @@ function buildLaunchWorkbenchAnalysis() {
 }
 
 function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbackLaunchDate) {
+  const coverageStart = getDataCoverageStartKey();
   return selectedProducts.map((product) => {
     const launchWindowStart = resolveLaunchWindowStart(product, fallbackLaunchDate);
     const launchDate = launchWindowStart.launchDate;
@@ -1778,6 +1788,8 @@ function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbac
       launchDateAdjusted: launchWindowStart.adjusted,
       plannedEnd,
       actualEnd,
+      coverageStart,
+      coverageEnd: cutoff || actualEnd,
       windowDays,
       actualKeys,
       baselineKeys,
@@ -1788,21 +1800,26 @@ function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbac
 function resolveLaunchWindowStart(product = {}, fallbackLaunchDate = "") {
   const registeredLaunchDate = product.launchDate || "";
   const officialLaunchDate = product.officialLaunchDate || registeredLaunchDate;
+  const dayZeroBase = product.config?.day_zero_base || "";
   const firstCapturedDate = product.firstDate && (product.revenue || product.items) ? product.firstDate : "";
-  const hasFullLaunchRows = !getLaunchProductSourceMeta().isFallback;
-  const adjusted = Boolean(
-    hasFullLaunchRows &&
-      registeredLaunchDate &&
-      firstCapturedDate &&
-      firstCapturedDate > registeredLaunchDate
-  );
+  const shouldUseCapturedDate =
+    String(product.config?.confiabilidade || "").toLowerCase() === "gap_base" &&
+    firstCapturedDate &&
+    registeredLaunchDate &&
+    firstCapturedDate > registeredLaunchDate;
+  const launchDate =
+    dayZeroBase ||
+    (shouldUseCapturedDate ? firstCapturedDate : registeredLaunchDate) ||
+    officialLaunchDate ||
+    firstCapturedDate ||
+    fallbackLaunchDate;
 
   return {
     registeredLaunchDate,
     officialLaunchDate,
     firstCapturedDate,
-    adjusted,
-    launchDate: adjusted ? firstCapturedDate : registeredLaunchDate || firstCapturedDate || officialLaunchDate || fallbackLaunchDate,
+    adjusted: shouldUseCapturedDate,
+    launchDate,
   };
 }
 
@@ -1815,11 +1832,12 @@ function buildLaunchComparisonRows(productWindows) {
   const dataSource = getLaunchProductSourceMeta();
   return productWindows
     .map((window) => {
-      const total = summarizeLaunchProductWindow(window, window.actualKeys.length || window.windowDays || 90);
+      const total = summarizeLaunchProductWindow(window, window.actualKeys.length || window.windowDays || 91);
       const d0 = summarizeLaunchProductWindow(window, 1);
-      const d7 = summarizeLaunchProductWindow(window, 7);
-      const d30 = summarizeLaunchProductWindow(window, 30);
-      const d90 = summarizeLaunchProductWindow(window, 90);
+      const d7 = summarizeLaunchProductWindow(window, 8);
+      const d15 = summarizeLaunchProductWindow(window, 16);
+      const d30 = summarizeLaunchProductWindow(window, 31);
+      const d90 = summarizeLaunchProductWindow(window, 91);
       const peakWeek = findLaunchPeakWeek(window);
       const topProduct = total.byProduct[0] || {};
       const topColor = total.byColor?.[0] || topProduct.colorSummary?.[0] || null;
@@ -1837,10 +1855,12 @@ function buildLaunchComparisonRows(productWindows) {
         totalItems: total.items,
         d0Revenue: d0.revenue,
         d7Revenue: d7.revenue,
+        d15Revenue: d15.revenue,
         d30Revenue: d30.revenue,
         d90Revenue: d90.revenue,
         d0Status: launchComparisonValueStatus(sourceGap, d0),
         d7Status: launchComparisonValueStatus(sourceGap, d7),
+        d15Status: launchComparisonValueStatus(sourceGap, d15),
         d30Status: launchComparisonValueStatus(sourceGap, d30),
         d90Status: launchComparisonValueStatus(sourceGap, d90),
         peakWeekLabel: peakWeek.label,
@@ -1857,7 +1877,7 @@ function buildLaunchComparisonRows(productWindows) {
 
 function buildLaunchMethodology(productWindows, selectedProducts, dataSource) {
   const rows = productWindows.map((window) => {
-    const dayZeroDate = window.registeredLaunchDate || window.launchDate || "";
+    const dayZeroDate = window.launchDate || window.registeredLaunchDate || "";
     const gapDays =
       window.officialLaunchDate && window.firstCapturedDate
         ? Math.max(0, daysBetweenDateKeys(window.officialLaunchDate, window.firstCapturedDate))
@@ -1990,21 +2010,24 @@ function findPreviousCompleteLaunchWindow(currentWindow, benchmarkWindows, minDa
     .filter((window) => window.productKey !== currentWindow.productKey)
     .filter((window) => (window.officialLaunchDate || window.launchDate || "") < currentDate)
     .filter((window) => !window.launchDateAdjusted)
-    .filter((window) => window.actualKeys.length >= minDays)
-    .filter((window) => summarizeLaunchWindowFacts(window, minDays).revenue > 0)
+    .filter((window) => {
+      const facts = summarizeLaunchWindowFacts(window, minDays);
+      return facts.complete && facts.revenue > 0;
+    })
     .sort((a, b) => String(b.officialLaunchDate || b.launchDate || "").localeCompare(String(a.officialLaunchDate || a.launchDate || "")))[0] || null;
 }
 
 function buildLaunchWindowMatrix(productWindows) {
   return productWindows.flatMap((window) =>
-    [15, 30, 90].map((days) => {
-      const facts = summarizeLaunchWindowFacts(window, days);
+    LAUNCH_RELATIVE_WINDOWS.map((checkpoint) => {
+      const facts = summarizeLaunchWindowFacts(window, checkpoint.days);
       return {
-        key: `${window.productKey}-${days}`,
+        key: `${window.productKey}-${checkpoint.label}`,
         model: window.product?.name || window.productKey,
-        label: `${days}d`,
-        days,
-        complete: window.actualKeys.length >= days,
+        label: checkpoint.label,
+        days: checkpoint.days,
+        complete: facts.complete,
+        coverageStatus: facts.coverageStatus,
         adjusted: window.launchDateAdjusted,
         ...facts,
       };
@@ -2022,22 +2045,22 @@ function buildLaunchProjection(productWindows, benchmarkWindows) {
 
   const current30 = summarizeLaunchWindowFacts(currentWindow, 30);
   const current15 = summarizeLaunchWindowFacts(currentWindow, 15);
-  const sourceDays = currentWindow.actualKeys.length >= 30 && current30.revenue > 0 ? 30 : 15;
+  const sourceDays = current30.complete && current30.revenue > 0 ? 30 : 15;
   const source = sourceDays === 30 ? current30 : current15;
   const benchmarks = benchmarkWindows
     .filter((window) => window.productKey !== currentWindow.productKey)
     .filter((window) => !window.launchDateAdjusted)
-    .filter((window) => window.actualKeys.length >= 90)
     .map((window) => {
       const base = summarizeLaunchWindowFacts(window, sourceDays);
-      const d90 = summarizeLaunchWindowFacts(window, 90);
+      const d90 = summarizeLaunchWindowFacts(window, 91);
       return {
         model: window.product?.name || window.productKey,
+        complete: base.complete && d90.complete,
         multiplier: safeDivide(d90.revenue, base.revenue),
         itemMultiplier: safeDivide(d90.items, base.items),
       };
     })
-    .filter((row) => row.multiplier > 0);
+    .filter((row) => row.complete && row.multiplier > 0);
 
   if (!source.revenue || !benchmarks.length) {
     return {
@@ -2107,16 +2130,25 @@ function buildLaunchGeneratedInsights({ hero, projection, comparison, media, pro
 }
 
 function summarizeLaunchWindowFacts(window, days) {
-  const keys = (window.actualKeys || []).slice(0, Math.max(0, days));
+  const requestedDays = Math.max(0, days);
+  const requestedKeys = (window.actualKeys || []).slice(0, requestedDays);
+  const keys = launchCoveredKeys(window, requestedKeys);
   const rows = filterProductRowsByKeys(keys, [window.productKey]);
   const summary = summarizeLaunchWorkbenchProducts(rows, [window.product]);
   const metrics = getMetricSummary(keys);
   const productOrders = deriveLaunchProductOrders(rows);
   const newCustomerShare = deriveLaunchNewCustomerShare(rows);
   const ticketOrderDenominator = productOrders.value || 0;
+  const coveredDays = keys.length;
+  const complete = requestedDays > 0 && coveredDays >= requestedDays;
+  const coverageStatus = !coveredDays ? "no_coverage" : complete ? "complete" : "partial";
   return {
     ...summary,
     keys,
+    requestedDays,
+    coveredDays,
+    complete,
+    coverageStatus,
     rows,
     metrics,
     capturedRows: rows.length,
@@ -2172,16 +2204,36 @@ function deriveLaunchNewCustomerShare(rows = []) {
 }
 
 function summarizeLaunchProductWindow(window, days) {
-  const keys = (window.actualKeys || []).slice(0, Math.max(0, days));
+  const requestedDays = Math.max(0, days);
+  const requestedKeys = (window.actualKeys || []).slice(0, requestedDays);
+  const keys = launchCoveredKeys(window, requestedKeys);
   const rows = filterProductRowsByKeys(keys, [window.productKey]);
+  const coveredDays = keys.length;
+  const complete = requestedDays > 0 && coveredDays >= requestedDays;
   return {
     ...summarizeLaunchWorkbenchProducts(rows, [window.product]),
     capturedRows: rows.length,
-    expectedDays: keys.length,
+    expectedDays: requestedDays,
+    coveredDays,
+    complete,
+    coverageStatus: !coveredDays ? "no_coverage" : complete ? "complete" : "partial",
   };
 }
 
+function launchCoveredKeys(window = {}, keys = []) {
+  return (keys || []).filter((key) => isLaunchDateCovered(window, key));
+}
+
+function isLaunchDateCovered(window = {}, dateKey = "") {
+  if (!dateKey) return false;
+  if (window.coverageStart && dateKey < window.coverageStart) return false;
+  if (window.coverageEnd && dateKey > window.coverageEnd) return false;
+  return true;
+}
+
 function launchComparisonValueStatus(sourceGap, summary = {}) {
+  if (summary.coverageStatus === "no_coverage") return "no_coverage";
+  if (summary.coverageStatus === "partial") return "partial";
   if (summary.capturedRows || summary.revenue || summary.items) return "captured";
   return sourceGap ? "partial" : "zero";
 }
@@ -2463,6 +2515,7 @@ function renderLaunchComparison(analysis) {
             </div>
             <div class="launch-comparison-card-metrics">
               <span>D+7 <strong>${renderLaunchComparisonValue(row.d7Revenue, row.d7Status)}</strong></span>
+              <span>D+15 <strong>${renderLaunchComparisonValue(row.d15Revenue, row.d15Status)}</strong></span>
               <span>D+30 <strong>${renderLaunchComparisonValue(row.d30Revenue, row.d30Status)}</strong></span>
               <span>D+90 <strong>${renderLaunchComparisonValue(row.d90Revenue, row.d90Status)}</strong></span>
               <span>Pico <strong>${escapeHtml(row.peakWeekLabel)}</strong></span>
@@ -2482,6 +2535,7 @@ function renderLaunchComparison(analysis) {
             <td><strong>${escapeHtml(row.name)}</strong><br><span>${escapeHtml(row.launchDateLabel)}</span></td>
             <td class="numeric-cell">${renderLaunchComparisonValue(row.d0Revenue, row.d0Status)}</td>
             <td class="numeric-cell">${renderLaunchComparisonValue(row.d7Revenue, row.d7Status)}</td>
+            <td class="numeric-cell">${renderLaunchComparisonValue(row.d15Revenue, row.d15Status)}</td>
             <td class="numeric-cell">${renderLaunchComparisonValue(row.d30Revenue, row.d30Status)}</td>
             <td class="numeric-cell">${renderLaunchComparisonValue(row.d90Revenue, row.d90Status)}</td>
             <td>${escapeHtml(row.peakWeekLabel)}<br><span>${formatCurrency(row.peakWeekRevenue)}</span></td>
@@ -2497,10 +2551,11 @@ function renderLaunchComparison(analysis) {
           </tr>
         `
       )
-      .join("") || emptyTableRow(9);
+      .join("") || emptyTableRow(10);
 }
 
 function renderLaunchComparisonValue(value, status) {
+  if (status === "no_coverage") return `<span class="comparison-missing">Sem cobertura</span>`;
   if (status === "partial") return `<span class="comparison-missing">Base parcial</span>`;
   return formatCurrency(value);
 }
@@ -2721,7 +2776,9 @@ function renderLaunchWindowMatrix(analysis) {
         const newShare = row.hasNewCustomerData ? formatPercent(row.newCustomerShare) : "Sem campo";
         const status = row.adjusted
           ? `<span class="status-chip warning">D0 SSOT</span>`
-          : row.complete
+          : row.coverageStatus === "no_coverage"
+            ? `<span class="status-chip neutral">Sem cobertura</span>`
+            : row.coverageStatus === "complete"
             ? `<span class="status-chip success">Completa</span>`
             : `<span class="status-chip warning">Parcial</span>`;
         return `
@@ -2782,11 +2839,20 @@ function renderLaunchWindowCards(analysis) {
         <article class="launch-window-card">
           <span>${escapeHtml(window.label)}</span>
           <strong>${formatCurrency(window.productRevenue)}</strong>
+          <small>${escapeHtml(formatLaunchCoverageNote(window))}</small>
           <small>${formatInteger(window.productItems)} itens · ${formatInteger(window.orders)} pedidos · ${formatRoas(window.roas)}</small>
         </article>
       `
     )
     .join("");
+}
+
+function formatLaunchCoverageNote(window = {}) {
+  if (window.coverageStatus === "no_coverage") return "sem cobertura";
+  if (window.coverageStatus === "partial") {
+    return `${formatInteger(window.coveredDays)} de ${formatInteger(window.requestedDays)} dias cobertos`;
+  }
+  return "janela coberta";
 }
 
 function renderLaunchProductTable(analysis) {
@@ -3071,7 +3137,7 @@ function launchConfiguredModelIdentity(config = {}) {
   const text = normalizeComparableText(`${config.modelo || ""} ${(config.termos_busca || []).join(" ")}`);
   const pattern = LAUNCH_MODEL_PATTERNS.find((item) => item.pattern.test(text));
   if (pattern && LAUNCH_SHOE_MODEL_FAMILIES.has(slug(pattern.name))) {
-    return { key: slug(pattern.name), name: pattern.name };
+    return { key: slug(pattern.name), name: cleanLaunchText(config.modelo || pattern.name) || pattern.name };
   }
   return { key: config.model_key, name: config.modelo };
 }
@@ -3485,20 +3551,30 @@ function collectEventsInRange(start, end) {
 
 function buildLaunchWorkbenchWindows(productWindows, event) {
   const selectedProducts = productWindows.map((window) => window.product);
-  return [1, 7, 15, 30, 90].map((days) => {
+  return LAUNCH_RELATIVE_WINDOWS.map((checkpoint) => {
     const productRows = productWindows.flatMap((window) =>
-      filterProductRowsByKeys(window.actualKeys.slice(0, days), [window.productKey])
+      filterProductRowsByKeys(launchCoveredKeys(window, window.actualKeys.slice(0, checkpoint.days)), [window.productKey])
     );
-    const contextKeys = uniqueDateKeys(productWindows.flatMap((window) => window.actualKeys.slice(0, days)));
+    const contextKeys = uniqueDateKeys(
+      productWindows.flatMap((window) => launchCoveredKeys(window, window.actualKeys.slice(0, checkpoint.days)))
+    );
     const products = summarizeLaunchWorkbenchProducts(productRows, selectedProducts);
     const metrics = getMetricSummary(contextKeys);
     const media = summarizeLaunchWorkbenchMedia(contextKeys, event);
+    const coveredDays = Math.max(
+      0,
+      ...productWindows.map((window) => launchCoveredKeys(window, window.actualKeys.slice(0, checkpoint.days)).length)
+    );
+    const coverageStatus = !coveredDays ? "no_coverage" : coveredDays >= checkpoint.days ? "complete" : "partial";
     return {
-      label: days === 1 ? "D0" : `D+${days - 1}`,
+      label: checkpoint.label,
       productRevenue: products.revenue,
       productItems: products.items,
       orders: metrics.pedidos_aprovados,
       roas: media.roas,
+      coverageStatus,
+      coveredDays,
+      requestedDays: checkpoint.days,
     };
   });
 }
@@ -3699,6 +3775,19 @@ function getDataCutoffKey() {
     .filter(Boolean)
     .sort()
     .pop();
+}
+
+function getDataCoverageStartKey() {
+  const launchRows = state.data.lancamentosProdutos || [];
+  const productStart = launchRows
+    .map((row) => row.data)
+    .filter(Boolean)
+    .sort()[0];
+  if (productStart) return productStart;
+  return (state.data.kpis || [])
+    .map((row) => row.data)
+    .filter(Boolean)
+    .sort()[0];
 }
 
 function safeDivide(numerator, denominator) {

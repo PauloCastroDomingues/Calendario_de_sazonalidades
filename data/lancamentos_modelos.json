@@ -24,11 +24,16 @@
     "confiabilidade": ""
   },
   {
-    "modelo": "monochrome",
+    "modelo_id": "rs8_monochrome",
+    "modelo": "RS8 Avant Monochrome",
+    "linha": "Monochrome",
     "data_lancamento": "2026-06-25",
-    "observacao": "lançamento oficial captato no ssot",
-    "data_oficial": "",
-    "day_zero_base": "",
+    "data_oficial": "2026-06-25",
+    "day_zero_base": "2026-06-25",
+    "termos_busca": "RS8 Avant Monochrome|RS8AVANT Monochrome|RS8AvantMonochrome|Monochrome",
+    "sku_prefixos": "",
+    "status": "Ativo",
+    "observacao": "Lançamento oficial RS8 Avant Monochrome",
     "confiabilidade": ""
   }
 ]

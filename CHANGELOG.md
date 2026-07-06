@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.31 - 2026-07-06
+
+- Ajustada a resolucao de D0 na aba de lancamentos: `data_lancamento` vira D0 oficial, `day_zero_base` sobrescreve quando preenchido e a primeira venda capturada so ajusta D0 quando `confiabilidade=gap_base`.
+- Monochrome passa a ser cadastrado como `RS8 Avant Monochrome`, com termos explicitos de busca e D0 em 25/06/2026.
+- A matriz de janelas passa a exibir D0, D+7, D+15, D+30 e D+90 com status de cobertura, diferenciando zero real de periodo ainda nao carregado.
+- Apps Script passa a exportar os campos ampliados de `lancamentos_modelos` para preservar modelo_id, linha, termos de busca, prefixos e status.
+- Atualizado cache bust dos assets para `v=0.5.31`.
+
 ## 0.5.30 - 2026-07-06
 
 - Corrigido cache do `dashboard.html` em `/` e `/dashboard.html` para evitar que o navegador continue carregando bundles antigos apos deploy.
