@@ -1,54 +1,54 @@
 [
   {
-    "modelo": "GT Collection",
-    "data_lancamento": "2024-10-18",
-    "observacao": "Lancamento oficial 18/10/2024. Primeira venda na base em 11/02/2025 (gap de 116 dias) por ausencia de dados Shopify no periodo Shoppub pre-migracao. Dia 0 usado = 11/02/2025.",
-    "data_oficial": "2024-10-18",
+    "modelo": "GT",
+    "data_lancamento": "2025-02-11",
+    "observacao": "lançamento oficial 18/out/2024. Primeira venda na base em 11/fev/2025 (gap de 116 dias). Causa: ausência de dados Shopify referentes ao período Shoppub pré-migração. Dia 0 usado = 11/fev/2025. (com base na primeira venda captada)",
+    "data_oficial": "2025-02-11",
     "day_zero_base": "2025-02-11",
-    "confiabilidade": "gap_base",
-    "modelo_id": "gt",
-    "linha": "GT",
-    "termos_busca": "GT|RS6 GT|RS6GT|RS7 GT|RS7GT|Knit GT|KnitGT|911 GT|911GT",
-    "sku_prefixos": "RS6GT|RS7GT|KNITGT|911GT",
-    "status": "Ativo"
+    "confiabilidade": "",
+    "modelo_id": "",
+    "linha": "",
+    "termos_busca": "",
+    "sku_prefixos": "",
+    "status": ""
   },
   {
     "modelo": "Avant",
     "data_lancamento": "2025-10-02",
-    "observacao": "Lancamento oficial 02/10/2025. Primeira venda na base no mesmo dia. Gap = 0 dias. Dados limpos desde o lancamento real.",
+    "observacao": "lançamento oficial captato no ssot",
     "data_oficial": "2025-10-02",
     "day_zero_base": "2025-10-02",
     "confiabilidade": "",
-    "modelo_id": "avant",
-    "linha": "Avant",
-    "termos_busca": "Avant|RS8 Avant|RS8AVANT|RS7 Avant|RS7AVANT|RS6 Avant|RS6AVANT",
-    "sku_prefixos": "RS8AVANT|RS7AVANT|RS6AVANT",
-    "status": "Ativo"
+    "modelo_id": "",
+    "linha": "",
+    "termos_busca": "",
+    "sku_prefixos": "",
+    "status": ""
   },
   {
     "modelo": "Phantom",
     "data_lancamento": "2026-04-16",
-    "observacao": "Lancamento oficial captado no SSOT.",
+    "observacao": "lançamento oficial captato no ssot",
     "data_oficial": "2026-04-16",
     "day_zero_base": "2026-04-16",
     "confiabilidade": "",
-    "modelo_id": "phantom",
-    "linha": "Phantom",
-    "termos_busca": "Phantom|Phantom Slip|Phantom Easy|Phantom Knit",
-    "sku_prefixos": "PHANTOM",
-    "status": "Ativo"
+    "modelo_id": "",
+    "linha": "",
+    "termos_busca": "",
+    "sku_prefixos": "",
+    "status": ""
   },
   {
-    "modelo_id": "rs8_monochrome",
-    "modelo": "RS8 Avant Monochrome",
-    "linha": "Monochrome",
+    "modelo": "monochrome",
     "data_lancamento": "2026-06-25",
+    "observacao": "lançamento oficial captato no ssot",
     "data_oficial": "2026-06-25",
     "day_zero_base": "2026-06-25",
-    "termos_busca": "RS8 Avant Monochrome|RS8AVANT Monochrome|RS8AvantMonochrome|Monochrome",
+    "confiabilidade": "",
+    "modelo_id": "",
+    "linha": "",
+    "termos_busca": "",
     "sku_prefixos": "",
-    "status": "Ativo",
-    "observacao": "Lancamento oficial RS8 Avant Monochrome.",
-    "confiabilidade": ""
+    "status": ""
   }
 ]
