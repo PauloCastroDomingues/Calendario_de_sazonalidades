@@ -13,17 +13,17 @@
     "status": ""
   },
   {
+    "modelo_id": "avant",
     "modelo": "Avant",
-    "data_lancamento": "2025-10-02",
-    "observacao": "lançamento oficial captato no ssot",
-    "data_oficial": "2025-10-02T03:00:00Z",
-    "day_zero_base": "2025-10-02T03:00:00Z",
-    "confiabilidade": "",
-    "modelo_id": "",
-    "linha": "",
-    "termos_busca": "",
-    "sku_prefixos": "",
-    "status": ""
+    "linha": "Avant",
+    "data_lancamento": "2026-02-10",
+    "data_oficial": "2026-02-10",
+    "day_zero_base": "2026-02-10",
+    "termos_busca": "Avant|RS8 Avant|RS8AVANT|RS7 Avant|RS7AVANT|RS6 Avant|RS6AVANT",
+    "sku_prefixos": "RS8AVANT|RS7AVANT|RS6AVANT",
+    "status": "Ativo",
+    "observacao": "lançamento oficial Avant em 10/02/2026; D0 usado conforme primeira venda ativa na base.",
+    "confiabilidade": ""
   },
   {
     "modelo": "Phantom",
