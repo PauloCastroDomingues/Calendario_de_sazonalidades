@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.35 - 2026-07-07
+
+- Criada regra explicita de familia antes de qualquer fallback: todo produto com `GT`, `Avant`, `Phantom` ou `Monochrome` no nome/SKU entra na respectiva linha.
+- GT passa a usar `confiabilidade=gap_base`, deixando a curva aparecer a partir da primeira data realmente coberta pela base atual de produtos.
+- Monochrome continua como linha propria mesmo quando o nome completo do produto e `RS8 Avant Monochrome`.
+- Atualizado cache bust dos assets para `v=0.5.35`.
+
 ## 0.5.34 - 2026-07-07
 
 - A aba de lancamentos passa a listar como modelos analisaveis apenas os modelos oficiais cadastrados em `lancamentos_modelos`, evitando que produtos soltos usem primeira venda como D0.

@@ -2,10 +2,10 @@
   {
     "modelo": "GT",
     "data_lancamento": "2025-02-11",
-    "observacao": "Lancamento oficial em 18/10/2024. Primeira venda na base em 11/02/2025 por gap de cobertura do periodo pre-migracao. D0 usado na analise = 11/02/2025.",
+    "observacao": "Lancamento oficial em 18/10/2024. A base atual de produtos so tem captura de GT a partir de 17/12/2025; por isso o D0 analitico usa a primeira venda captada enquanto a confiabilidade estiver como gap_base.",
     "data_oficial": "2025-02-11",
-    "day_zero_base": "2025-02-11",
-    "confiabilidade": "",
+    "day_zero_base": "",
+    "confiabilidade": "gap_base",
     "modelo_id": "gt",
     "linha": "GT",
     "termos_busca": "GT|RS6 GT|RS6GT|RS7 GT|RS7GT|Knit GT|KnitGT|911 GT|911GT",

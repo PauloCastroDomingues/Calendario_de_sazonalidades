@@ -171,6 +171,33 @@ const LAUNCH_MODEL_PATTERNS = [
 ];
 
 const LAUNCH_SHOE_MODEL_FAMILIES = new Set(["monochrome", "avant", "gt", "phantom"]);
+const LAUNCH_MODEL_FAMILY_RULES = [
+  {
+    key: "monochrome",
+    name: "Monochrome",
+    pattern:
+      /\bmonochrome\b|\brs\s*8\s*monochrome\b|\brs8monochrome\b|\brs\s*8\s*avant\s*monochrome\b|\brs8avantmonochrome\b|\brs\s*8\s*avant\s*mono\b|\brs8avantmono\b/,
+    compactPattern: /rs8avantmono|rs8avantmonochrome|rs8monochrome/,
+  },
+  {
+    key: "phantom",
+    name: "Phantom",
+    pattern: /\bphantom\b|\bphantom\s*(slip|easy|knit)\b|\bphantom(slip|easy|knit)\b/,
+    compactPattern: /phantom/,
+  },
+  {
+    key: "avant",
+    name: "Avant",
+    pattern: /\bavant\b|\brs\s*[678]\s*avant\b|\brs[678]avant\b/,
+    compactPattern: /rs[678]avant/,
+  },
+  {
+    key: "gt",
+    name: "GT",
+    pattern: /\bgt\b|\brs\s*[67]\s*gt\b|\brs[67]gt\b|\bknit\s*gt\b|\bknitgt\b|\b911\s*gt\b|\b911gt\b/,
+    compactPattern: /(^|[^a-z0-9])(gt)([^a-z0-9]|$)|rs[67]gt|knitgt|911gt/,
+  },
+];
 
 const LAUNCH_TOPIC_RULES = [
   {
@@ -3170,6 +3197,17 @@ function launchModelAliasTerms(modelName = "") {
 
 function launchModelIdentity(row = {}, configs = []) {
   const text = normalizeComparableText(`${row.product_name || ""} ${row.product_key || ""} ${row.sku || ""}`);
+  const family = launchFamilyFromText(text);
+  if (family) {
+    const familyConfig = launchConfigForFamily(family.key, configs);
+    return {
+      key: family.key,
+      name: cleanLaunchText(familyConfig?.linha || familyConfig?.modelo || family.name),
+      topic: familyConfig?.topico || inferLaunchProductTopic(row, familyConfig?.linha || familyConfig?.modelo || family.name),
+      config: familyConfig || null,
+    };
+  }
+
   const matchedConfig = configs
     .map((config) => {
       const matchedTerms = (config.termos_busca || []).filter((term) => term && text.includes(term));
@@ -3224,10 +3262,57 @@ function launchModelConfigMatchesFamily(configName = "", normalizedName = "") {
 }
 
 function launchConfiguredModelIdentity(config = {}) {
+  const text = normalizeComparableText(`${config.linha || ""} ${config.modelo || ""} ${(config.termos_busca || []).join(" ")}`);
+  const family = launchFamilyFromText(text);
+  if (family) {
+    return { key: family.key, name: cleanLaunchText(config.linha || config.modelo || family.name) || family.name };
+  }
+  const pattern = LAUNCH_MODEL_PATTERNS.find((item) => item.pattern.test(text));
+  if (pattern && LAUNCH_SHOE_MODEL_FAMILIES.has(slug(pattern.name))) {
+    return { key: slug(pattern.name), name: cleanLaunchText(config.linha || config.modelo || pattern.name) || pattern.name };
+  }
+  return { key: config.model_key, name: config.modelo };
+}
+
+function launchFamilyFromText(text = "") {
+  const normalized = normalizeComparableText(text);
+  const compact = normalized.replace(/\s+/g, "");
+  return LAUNCH_MODEL_FAMILY_RULES.find(
+    (rule) => rule.pattern.test(normalized) || (rule.compactPattern && rule.compactPattern.test(compact))
+  );
+}
+
+function launchConfigForFamily(familyKey = "", configs = []) {
+  if (!familyKey) return null;
+  return (
+    configs.find((config) => {
+      const configuredModel = launchConfiguredModelIdentityWithoutFamily(config);
+      const text = normalizeComparableText(
+        [
+          config.linha,
+          config.modelo,
+          config.modelo_id,
+          config.model_key,
+          ...(config.termos_busca || []),
+        ].join(" ")
+      );
+      const compact = text.replace(/\s+/g, "");
+      return (
+        configuredModel.key === familyKey ||
+        modelColorKey(config.linha || "") === familyKey ||
+        modelColorKey(config.modelo || "") === familyKey ||
+        text.includes(familyKey) ||
+        compact.includes(familyKey)
+      );
+    }) || null
+  );
+}
+
+function launchConfiguredModelIdentityWithoutFamily(config = {}) {
   const text = normalizeComparableText(`${config.modelo || ""} ${(config.termos_busca || []).join(" ")}`);
   const pattern = LAUNCH_MODEL_PATTERNS.find((item) => item.pattern.test(text));
   if (pattern && LAUNCH_SHOE_MODEL_FAMILIES.has(slug(pattern.name))) {
-    return { key: slug(pattern.name), name: cleanLaunchText(config.modelo || pattern.name) || pattern.name };
+    return { key: slug(pattern.name), name: cleanLaunchText(config.linha || config.modelo || pattern.name) || pattern.name };
   }
   return { key: config.model_key, name: config.modelo };
 }
