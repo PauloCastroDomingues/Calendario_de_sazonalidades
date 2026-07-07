@@ -7,9 +7,9 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Calendário Comercial Reise</title>
-    <link rel="stylesheet" href="src/style.css?v=0.5.31" />
+    <link rel="stylesheet" href="src/style.css?v=0.5.32" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="src/app.js?v=0.5.31" defer></script>
+    <script src="src/app.js?v=0.5.32" defer></script>
   </head>
   <body>
     <header class="topbar">
@@ -393,10 +393,10 @@
           <div id="readinessPlaybookList" class="readiness-list"></div>
         </div>
 
-        <div class="action-plan-panel" aria-label="Plano de acao executivo">
+        <div class="action-plan-panel" aria-label="Plano de ação executivo">
           <div class="readiness-heading">
-            <h3>Plano de acao</h3>
-            <span>Dono, prazo e status para fechar a preparacao</span>
+            <h3>Plano de ação</h3>
+            <span>Dono, prazo e status para fechar a preparação</span>
           </div>
           <ul id="actionPlanList" class="action-plan-list"></ul>
         </div>
@@ -490,10 +490,10 @@
           <span id="launchWorkbenchStatus" class="comparison-badge">Cache D-1</span>
         </div>
 
-        <div id="launchAnalysisPanel" class="launch-analysis-panel launch-analysis-workbench-panel" aria-label="Analise de lancamentos" hidden>
+        <div id="launchAnalysisPanel" class="launch-analysis-panel launch-analysis-workbench-panel" aria-label="Análise de lançamentos" hidden>
           <div class="readiness-heading">
-            <h3>Analise e comparacao de lancamentos</h3>
-            <span>Baseline anterior, produto, midia, UTM e janelas D+</span>
+            <h3>Análise e comparação de lançamentos</h3>
+            <span>Baseline anterior, produto, mídia, UTM e janelas D+</span>
           </div>
           <div id="launchAnalysisList" class="launch-analysis-list"></div>
         </div>
@@ -531,7 +531,7 @@
                 <select id="launchProductTopicSelect"></select>
               </label>
               <label class="launch-picker-field">
-                Modelo de tenis
+                Modelo de tênis
                 <select id="launchProductSelect"></select>
               </label>
             </div>
@@ -541,13 +541,13 @@
 
         <div id="launchInsight" class="launch-insight"></div>
 
-        <section id="launchMethodologyPanel" class="launch-methodology-panel" aria-label="Metodologia e limitacoes da analise"></section>
+        <section id="launchMethodologyPanel" class="launch-methodology-panel" aria-label="Metodologia e limitações da análise"></section>
 
-        <section id="launchHeroPanel" class="launch-hero-panel" aria-label="Destaque do lancamento atual"></section>
+        <section id="launchHeroPanel" class="launch-hero-panel" aria-label="Destaque do lançamento atual"></section>
 
         <div id="launchMetricGrid" class="launch-metric-grid"></div>
 
-        <section id="launchComparisonPanel" class="launch-comparison-panel" aria-label="Comparativo entre lancamentos" hidden>
+        <section id="launchComparisonPanel" class="launch-comparison-panel" aria-label="Comparativo entre lançamentos" hidden>
           <div class="section-heading launch-comparison-heading">
             <div>
               <span class="eyebrow">Comparativo</span>
@@ -567,8 +567,8 @@
                   <th class="numeric-cell">D+30</th>
                   <th class="numeric-cell">D+90</th>
                   <th>Pico semanal</th>
-                  <th>Cor lider</th>
-                  <th>Tamanho lider</th>
+                  <th>Cor líder</th>
+                  <th>Tamanho líder</th>
                   <th>Status</th>
                 </tr>
               </thead>
@@ -581,37 +581,55 @@
 
         <section class="launch-chart-grid" aria-label="Curvas de lançamento">
           <article class="chart-card launch-chart-card">
-            <h3>Faturamento acumulado</h3>
+            <div class="chart-card-head">
+              <h3>Faturamento acumulado</h3>
+              <span class="chart-help" tabindex="0" aria-label="Compara a receita acumulada dos modelos desde o D0 oficial. Dias sem venda dentro da cobertura mantêm o acumulado anterior.">?</span>
+            </div>
             <p id="launchCurveNote" class="launch-chart-note"></p>
             <canvas id="launchCurveChart" height="220"></canvas>
           </article>
           <article class="chart-card launch-chart-card">
-            <h3>Pedidos e itens por dia</h3>
+            <div class="chart-card-head">
+              <h3>Pedidos e itens por dia</h3>
+              <span class="chart-help" tabindex="0" aria-label="Mostra itens vendidos dos modelos selecionados contra pedidos totais do contexto comercial no mesmo dia relativo.">?</span>
+            </div>
             <canvas id="launchDailyChart" height="220"></canvas>
           </article>
           <article class="chart-card launch-chart-card">
-            <h3>Pares acumulados</h3>
+            <div class="chart-card-head">
+              <h3>Pares acumulados</h3>
+              <span class="chart-help" tabindex="0" aria-label="Compara a quantidade acumulada de pares ou itens vendidos desde o D0 de cada modelo.">?</span>
+            </div>
             <canvas id="launchItemsCurveChart" height="220"></canvas>
           </article>
           <article class="chart-card launch-chart-card">
-            <h3>Multiplicador de aceleracao</h3>
+            <div class="chart-card-head">
+              <h3>Multiplicador de aceleração</h3>
+              <span class="chart-help" tabindex="0" aria-label="Mede quantas vezes o acumulado cresceu em relação ao início da curva, útil para enxergar aceleração sem alterar a base real.">?</span>
+            </div>
             <canvas id="launchMultiplierChart" height="220"></canvas>
           </article>
           <article class="chart-card launch-chart-card">
-            <h3>Mix de produto</h3>
+            <div class="chart-card-head">
+              <h3>Mix de produto</h3>
+              <span class="chart-help" tabindex="0" aria-label="Mostra a participação semanal de cada modelo dentro da receita dos lançamentos selecionados.">?</span>
+            </div>
             <canvas id="launchMixChart" height="220"></canvas>
           </article>
           <article class="chart-card launch-chart-card">
-            <h3>Faturamento por semana</h3>
+            <div class="chart-card-head">
+              <h3>Faturamento por semana</h3>
+              <span class="chart-help" tabindex="0" aria-label="Agrupa a receita por semanas relativas S1, S2, S3... para comparar ritmo de tração entre modelos.">?</span>
+            </div>
             <canvas id="launchWeeklyRevenueChart" height="220"></canvas>
           </article>
         </section>
 
-        <section class="launch-intelligence-grid" aria-label="Leituras executivas de lancamento">
+        <section class="launch-intelligence-grid" aria-label="Leituras executivas de lançamento">
           <article class="launch-detail-panel launch-intelligence-panel">
             <div class="section-heading">
-              <span class="eyebrow">Aceleracao</span>
-              <h2>Evolucao semana a semana</h2>
+              <span class="eyebrow">Aceleração</span>
+              <h2>Evolução semana a semana</h2>
             </div>
             <div id="launchAccelerationGrid" class="launch-acceleration-grid"></div>
           </article>
@@ -627,7 +645,7 @@
           <article class="launch-detail-panel launch-intelligence-panel launch-channel-panel">
             <div class="section-heading">
               <span class="eyebrow">Canais</span>
-              <h2>Midia paga, CRM e conversao</h2>
+              <h2>Mídia paga, CRM e conversão</h2>
             </div>
             <div id="launchChannelBreakdown" class="launch-channel-breakdown"></div>
           </article>
@@ -660,7 +678,7 @@
           </div>
         </section>
 
-        <section id="launchProjectionPanel" class="launch-projection-panel" aria-label="Projecao de cenarios"></section>
+        <section id="launchProjectionPanel" class="launch-projection-panel" aria-label="Projeção de cenários"></section>
 
         <section class="launch-detail-grid" aria-label="Detalhes da análise de lançamento">
           <article class="launch-detail-panel">
@@ -707,7 +725,7 @@
         <table>
           <thead>
             <tr>
-              <th>Modelo do tenis / variacao</th>
+              <th>Modelo do tênis / variação</th>
               <th>Cor</th>
               <th>Tam.</th>
               <th class="numeric-cell">Receita</th>

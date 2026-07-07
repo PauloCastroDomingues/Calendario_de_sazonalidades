@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.32 - 2026-07-07
+
+- Refinada a aba de lancamentos com correcoes de portugues em textos executivos, estados vazios e labels de graficos.
+- Adicionados tooltips explicativos nos graficos de lancamento para deixar claro o que cada curva analisa.
+- Melhorada a leitura visual das curvas multi-modelo com tracejado e marcadores deterministicos por modelo, sem alterar calculos nem escala dos dados.
+- O resumo de itens passa a destacar produto lider, variacao lider, maior receita, cor, tamanho e SKUs analisados.
+- Apps Script amplia a aba `lancamentos_investimentos` com data, canal, campanha e campos planejado/real para refletir midia paga na analise.
+- Atualizado cache bust dos assets para `v=0.5.32`.
+
 ## 0.5.31 - 2026-07-06
 
 - Ajustada a resolucao de D0 na aba de lancamentos: `data_lancamento` vira D0 oficial, `day_zero_base` sobrescreve quando preenchido e a primeira venda capturada so ajusta D0 quando `confiabilidade=gap_base`.

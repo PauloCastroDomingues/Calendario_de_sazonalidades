@@ -2462,6 +2462,7 @@ textarea {
 
 .launch-chart-card {
   min-height: 280px;
+  overflow: visible;
   padding: 18px;
   background: #fbfcfb;
   border-color: rgba(18, 55, 47, 0.1);
@@ -2539,11 +2540,9 @@ textarea {
 }
 
 .launch-items-summary strong {
-  overflow: hidden;
   color: var(--green-900);
   font-size: 0.96rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
 }
 
 .launch-items-summary em {
@@ -2961,6 +2960,61 @@ textarea {
   margin: 0 0 12px;
   color: var(--green-900);
   font-size: 1rem;
+}
+
+.chart-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+}
+
+.chart-card-head h3 {
+  margin: 0;
+}
+
+.chart-help {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgba(18, 55, 47, 0.16);
+  border-radius: 999px;
+  color: var(--green-900);
+  background: #fff;
+  cursor: help;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.chart-help::after {
+  content: attr(aria-label);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 12;
+  width: min(320px, 72vw);
+  border-radius: 8px;
+  padding: 9px 10px;
+  color: #fff;
+  background: var(--green-900);
+  box-shadow: 0 16px 34px rgba(18, 55, 47, 0.18);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(3px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.chart-help:hover::after,
+.chart-help:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .chart-card canvas {

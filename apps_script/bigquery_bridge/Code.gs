@@ -49,6 +49,18 @@ const LAUNCH_INVESTMENTS_HEADER = [
   "receita",
   "pedidos",
   "observacao",
+  "data_lancamento",
+  "data_inicio",
+  "data_fim",
+  "canal",
+  "campanha",
+  "investimento_planejado",
+  "investimento_real",
+  "receita_planejada",
+  "receita_real",
+  "pedidos_planejados",
+  "pedidos_reais",
+  "status",
 ];
 
 const EXPORTS = [

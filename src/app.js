@@ -76,6 +76,7 @@ const FLUCTUATION_METRICS = [
 const CHART_FONT_FAMILY = 'Inter, "Segoe UI", Arial, sans-serif';
 const CHART_TEXT_COLOR = "#59615d";
 const CHART_GRID_COLOR = "rgba(18, 55, 47, 0.07)";
+const PAID_MEDIA_CHANNEL = "Mídia paga";
 const LAUNCH_CHART_CANVAS_IDS = new Set([
   "launchCurveChart",
   "launchDailyChart",
@@ -100,6 +101,8 @@ const LAUNCH_MODEL_COLOR_PALETTE = [
   "#8b6424",
 ];
 const CHART_FALLBACK_COLORS = ["#1e5a49", "#b98d43", "#a3483f", "#16463a", "#12372f", "#8b6424"];
+const LAUNCH_LINE_DASHES = [[], [8, 4], [3, 3], [10, 3, 2, 3], [2, 4], [12, 4]];
+const LAUNCH_POINT_STYLES = ["circle", "rectRounded", "triangle", "rectRot", "crossRot", "star"];
 const LAUNCH_RELATIVE_WINDOWS = [
   { label: "D0", relativeDay: 0, days: 1 },
   { label: "D+7", relativeDay: 7, days: 8 },
@@ -753,6 +756,7 @@ function normalizeLaunchInvestmentList(rows = []) {
         data_fim: normalizeDateKey(row.data_fim || row.end_date || row.data_inicio || row.data || launchDate),
         janela: cleanLaunchText(row.janela || row.window || ""),
         canal: cleanLaunchText(row.canal || row.channel || "Planejado"),
+        campanha: cleanLaunchText(row.campanha || row.campaign || row.campaign_name || ""),
         investimento_planejado: parseLaunchNumber(row.investimento_planejado),
         investimento_real: parseLaunchNumber(row.investimento_real || row.investimento),
         receita_planejada: parseLaunchNumber(row.receita_planejada || row.receita_meta),
@@ -1298,7 +1302,7 @@ function renderAutomationHealth(health = {}) {
   target.className = `automation-health automation-${slug(health.status || "atencao")}`;
   target.innerHTML = `
     <div>
-      <span>Automacao D-1</span>
+      <span>Automação D-1</span>
       <strong>${escapeHtml(health.label || "-")}</strong>
     </div>
     <div class="automation-health-grid">
@@ -1413,18 +1417,18 @@ function renderLaunchAnalysis(items = []) {
       <article class="launch-card launch-empty launch-planejado">
         <div class="launch-card-head">
           <div>
-            <span>Aguardando lancamento</span>
-            <h4>Nenhum lancamento ativo para comparar</h4>
+            <span>Aguardando lançamento</span>
+            <h4>Nenhum lançamento ativo para comparar</h4>
           </div>
           <strong>configurar</strong>
         </div>
-        <p>Crie um evento manual com tipo <strong>Lançamento de produto</strong> para liberar a comparacao.</p>
+        <p>Crie um evento manual com tipo <strong>Lançamento de produto</strong> para liberar a comparação.</p>
         <div class="launch-metrics launch-secondary">
           <span>Produto relacionado <strong>SKU, linha ou nome do produto</strong></span>
           <span>Campanha <strong>Nome ou UTM</strong></span>
           <span>Janela <strong>D0 a D+90</strong></span>
         </div>
-        <p class="launch-diagnostic">Depois de salvo, este bloco cruza receita, pedidos, ticket, clientes novos, produto, estoque, midia e UTMs contra uma janela anterior comparavel.</p>
+        <p class="launch-diagnostic">Depois de salvo, este bloco cruza receita, pedidos, ticket, clientes novos, produto, estoque, mídia e UTMs contra uma janela anterior comparável.</p>
         <footer>Abra Campanhas e lançamentos, escolha o tipo Lançamento de produto e preencha Produto relacionado e Campanha relacionada.</footer>
       </article>
     `;
@@ -1452,7 +1456,7 @@ function renderLaunchCard(item = {}) {
     .join("");
 
   const status = slug(item.status || "planejado");
-  const productName = product.primary_name || item.product_reference || "Produto nao vinculado";
+  const productName = product.primary_name || item.product_reference || "Produto não vinculado";
   const mediaRoas = Number(media.roas || 0);
   const revenueLift = metrics.revenue_lift;
 
@@ -1460,7 +1464,7 @@ function renderLaunchCard(item = {}) {
     <article class="launch-card launch-${status}">
       <div class="launch-card-head">
         <div>
-          <span>${escapeHtml(item.phase || "lancamento")}</span>
+          <span>${escapeHtml(item.phase || "lançamento")}</span>
           <h4>${escapeHtml(item.name || "-")}</h4>
         </div>
         <strong>${escapeHtml(item.status || "-")}</strong>
@@ -1563,7 +1567,7 @@ function renderLaunchProductPicker(products) {
   topicSelect.disabled = !groupedProducts.length;
 
   productSelect.innerHTML = [
-    `<option value="">${topicProducts.length ? "Selecionar modelo de tenis" : "Sem modelos neste tipo"}</option>`,
+    `<option value="">${topicProducts.length ? "Selecionar modelo de tênis" : "Sem modelos neste tipo"}</option>`,
     ...topicProducts.map((product) => {
       const selectedLabel = state.launch.productKeys.includes(product.key) ? "Selecionado - " : "";
       const label = `${selectedLabel}${product.name} | ${launchProductDateLabel(product)} | ${formatCompactCurrency(product.revenue)}`;
@@ -1672,8 +1676,8 @@ function renderLaunchWorkbench() {
   if (!root || root.hidden) return;
   if (!state.loadedAt) {
     document.getElementById("launchInsight").innerHTML = `
-      <strong>Carregando dados de lancamento.</strong>
-      <span>A analise aparece assim que a API ou os JSONs locais terminarem de carregar.</span>
+      <strong>Carregando dados de lançamento.</strong>
+      <span>A análise aparece assim que a API ou os JSONs locais terminarem de carregar.</span>
     `;
     return;
   }
@@ -1916,29 +1920,29 @@ function buildLaunchMethodology(productWindows, selectedProducts, dataSource) {
   if (!hasCustomerFlag) {
     alerts.push({
       level: "warning",
-      title: "Cliente novo indisponivel por pedido",
-      detail: "O JSON atual nao traz cliente_novo por pedido; % novos fica sinalizado como lacuna metodologica.",
+      title: "Cliente novo indisponível por pedido",
+      detail: "O JSON atual não traz cliente_novo por pedido; % novos fica sinalizado como lacuna metodológica.",
     });
   }
   if (!hasOrderIdentity) {
     alerts.push({
       level: "warning",
-      title: "Pedido por modelo indisponivel",
-      detail: "A base de SKU/dia nao possui order_id/pedido_id; ticket medio por pedido usa apenas contexto geral quando exibido.",
+      title: "Pedido por modelo indisponível",
+      detail: "A base de SKU/dia não possui order_id/pedido_id; ticket médio por pedido usa apenas contexto geral quando exibido.",
     });
   }
   if (dataSource?.isFallback) {
     alerts.push({
       level: "critical",
       title: "Fonte parcial de produto",
-      detail: "Sem lancamentos_produtos_dia.json completo, os dias sem linha nao podem ser interpretados como venda zero.",
+      detail: "Sem lancamentos_produtos_dia.json completo, os dias sem linha não podem ser interpretados como venda zero.",
     });
   }
   if (!state.data.lancamentosInvestimentos?.length) {
     alerts.push({
       level: "warning",
-      title: "Investimentos de lancamento vazios",
-      detail: "Midia e CRM aparecem como leitura incompleta ate a planilha de investimentos/disparos ser preenchida.",
+      title: "Investimentos de lançamento vazios",
+      detail: "Mídia e CRM aparecem como leitura incompleta até a planilha de investimentos/disparos ser preenchida.",
     });
   }
   if (!selectedProducts.length) {
@@ -1959,9 +1963,9 @@ function buildLaunchMethodology(productWindows, selectedProducts, dataSource) {
 
 function classifyLaunchReliability(gapDays, firstCapturedDate) {
   if (!firstCapturedDate) return "Sem venda capturada";
-  if (gapDays === 0) return "Confiavel";
-  if (gapDays > 0) return "Traction consolidada";
-  return "Em validacao";
+  if (gapDays === 0) return "Confiável";
+  if (gapDays > 0) return "Tração consolidada";
+  return "Em validação";
 }
 
 function buildLaunchHero(productWindows, benchmarkWindows) {
@@ -1999,7 +2003,7 @@ function buildLaunchHeroCard(label, value, referenceValue, formatter, available 
   return {
     label,
     value: formatter(value),
-    delta: variation ? `${variation.label} vs lancamento anterior` : "Sem benchmark completo anterior",
+    delta: variation ? `${variation.label} vs lançamento anterior` : "Sem benchmark completo anterior",
     status: variation?.direction || "neutral",
   };
 }
@@ -2040,7 +2044,7 @@ function buildLaunchProjection(productWindows, benchmarkWindows) {
     .filter((window) => window.productKey)
     .sort((a, b) => String(b.officialLaunchDate || b.launchDate || "").localeCompare(String(a.officialLaunchDate || a.launchDate || "")))[0];
   if (!currentWindow) {
-    return { available: false, reason: "Selecione um modelo para projetar cenarios.", scenarios: [], benchmarks: [] };
+    return { available: false, reason: "Selecione um modelo para projetar cenários.", scenarios: [], benchmarks: [] };
   }
 
   const current30 = summarizeLaunchWindowFacts(currentWindow, 30);
@@ -2066,7 +2070,7 @@ function buildLaunchProjection(productWindows, benchmarkWindows) {
     return {
       available: false,
       reason: benchmarks.length
-        ? "Ainda nao ha faturamento suficiente na janela atual."
+        ? "Ainda não há faturamento suficiente na janela atual."
         : "Aguardando ao menos um benchmark limpo com janela D+90 completa.",
       sourceDays,
       source,
@@ -2108,7 +2112,7 @@ function buildLaunchGeneratedInsights({ hero, projection, comparison, media, pro
     insights.push(`${currentName}: faturamento 30d em ${revenueCard.value}; ${revenueCard.delta.toLowerCase()}.`);
   }
   if (ticketCard && ticketCard.status !== "missing") {
-    insights.push(`Ticket por par em ${ticketCard.value}; use isso separado do ticket por pedido para nao distorcer compras multi-par.`);
+    insights.push(`Ticket por par em ${ticketCard.value}; use isso separado do ticket por pedido para não distorcer compras multi-par.`);
   }
   const adjustedModels = methodology?.rows?.filter((row) => row.adjusted) || [];
   if (adjustedModels.length) {
@@ -2116,15 +2120,15 @@ function buildLaunchGeneratedInsights({ hero, projection, comparison, media, pro
   }
   if (projection?.available) {
     const target = projection.scenarios.find((scenario) => scenario.label === "Base / target");
-    insights.push(`Cenario base projeta ${formatCurrency(target.revenue)} ate D+90 usando multiplicadores historicos limpos.`);
+    insights.push(`Cenário base projeta ${formatCurrency(target.revenue)} até D+90 usando multiplicadores históricos limpos.`);
   } else if (projection?.reason) {
-    insights.push(`Projecao D+90 indisponivel: ${projection.reason}`);
+    insights.push(`Projeção D+90 indisponível: ${projection.reason}`);
   }
   if (!media?.attributedRevenue) {
-    insights.push("Midia/CRM sem receita atribuida suficiente na janela; interpretar ROAS como lacuna de tracking, nao como zero real.");
+    insights.push("Mídia/CRM sem receita atribuída suficiente na janela; interpretar ROAS como lacuna de tracking, não como zero real.");
   }
   if (safeDivide(productSummary.items, metrics.pedidos_aprovados) > 1) {
-    insights.push(`Pares por pedido acima de 1 (${formatRatio(safeDivide(productSummary.items, metrics.pedidos_aprovados))}), sinal de compra com multiplos pares no periodo.`);
+    insights.push(`Pares por pedido acima de 1 (${formatRatio(safeDivide(productSummary.items, metrics.pedidos_aprovados))}), sinal de compra com múltiplos pares no período.`);
   }
   return insights.slice(0, 5);
 }
@@ -2269,12 +2273,12 @@ function renderLaunchInsight(analysis) {
   if (!analysis.selectedProducts.length) {
     target.innerHTML = `
       <strong>Selecione ao menos um modelo para iniciar.</strong>
-      <span>A curva usa o cache D-1 ja exportado; trocar filtro nao consulta BigQuery.</span>
+      <span>A curva usa o cache D-1 já exportado; trocar filtro não consulta BigQuery.</span>
     `;
     return;
   }
 
-  const eventName = analysis.launchEvent?.titulo || analysis.launchEvent?.nome_evento || "analise avulsa";
+  const eventName = analysis.launchEvent?.titulo || analysis.launchEvent?.nome_evento || "análise avulsa";
   const productLabel =
     analysis.selectedProducts.length === 1
       ? analysis.selectedProducts[0].name
@@ -2285,22 +2289,25 @@ function renderLaunchInsight(analysis) {
     ? analysis.selectedProducts.length > 1
       ? `D0 a D+${Math.max(0, analysis.curve.labels.length - 1)} por modelo`
       : `${formatShortDate(analysis.launchDate)} a ${formatShortDate(analysis.actualEnd)}`
-    : `lancamento futuro em ${formatShortDate(analysis.launchDate)}`;
+    : `lançamento futuro em ${formatShortDate(analysis.launchDate)}`;
   const relativeNote =
     analysis.selectedProducts.length > 1
-      ? " Cada modelo usa a propria data de lancamento como D0 para comparar desempenho em dias relativos."
+      ? " Cada modelo usa a própria data de lançamento como D0 para comparar desempenho em dias relativos."
       : "";
   const adjustedCount = analysis.productWindows.filter((window) => window.launchDateAdjusted).length;
   const adjustedNote = adjustedCount
-    ? ` ${adjustedCount} modelo(s) usam D0 SSOT porque a data oficial nao tem cobertura de SKU na base exportada.`
+    ? ` ${adjustedCount} modelo(s) usam D0 SSOT porque a data oficial não tem cobertura de SKU na base exportada.`
     : "";
   const sourceNote = analysis.dataSource?.isFallback
-    ? " Fonte atual: recorte top/queda; rode o Apps Script atualizado para carregar a base completa de lancamentos."
-    : " Fonte atual: base completa de lancamentos por SKU/dia.";
+    ? " Fonte atual: recorte top/queda; rode o Apps Script atualizado para carregar a base completa de lançamentos."
+    : " Fonte atual: base completa de lançamentos por SKU/dia.";
+  const d0Text = analysis.productWindows
+    .map((window) => `${window.product?.name || window.productKey}: D0 ${formatShortDate(window.launchDate)}`)
+    .join(" · ");
 
   target.innerHTML = `
     <strong>${escapeHtml(eventName)} · ${escapeHtml(productLabel)}</strong>
-    <span>Janela analisada: ${actualText}.${relativeNote}${adjustedNote} Modelo vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.${sourceNote}</span>
+    <span>Janela analisada: ${actualText}. ${d0Text ? `Base oficial: ${d0Text}. ` : ""}${relativeNote}${adjustedNote} Modelo vs baseline anterior: ${productVariation}. Contexto comercial: ${formatCurrency(analysis.metrics.receita_total)} e ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos.${sourceNote}</span>
     ${
       analysis.generatedInsights?.length
         ? `<ul>${analysis.generatedInsights.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`
@@ -2347,7 +2354,7 @@ function renderLaunchMethodology(analysis) {
         <span class="eyebrow">Metodologia</span>
         <h2>Confiabilidade e limites da leitura</h2>
       </div>
-      <span class="comparison-badge">${escapeHtml(analysis.dataSource?.label || "fonte nao identificada")}</span>
+      <span class="comparison-badge">${escapeHtml(analysis.dataSource?.label || "fonte não identificada")}</span>
     </div>
     <div class="launch-method-grid">${rowHtml || `<p class="launch-intelligence-empty">Selecione modelos para calcular confiabilidade.</p>`}</div>
     <ul class="launch-method-alerts">${alertHtml}</ul>
@@ -2369,7 +2376,7 @@ function renderLaunchHero(analysis) {
     <div class="launch-hero-copy">
       <span class="eyebrow">Destaque 30d</span>
       <h2>${escapeHtml(currentName)}</h2>
-      <p>Comparado contra ${escapeHtml(referenceName)}. Quando pedido, cliente novo ou CRM nao existem no JSON, o card fica sinalizado como lacuna.</p>
+      <p>Comparado contra ${escapeHtml(referenceName)}. Quando pedido, cliente novo ou CRM não existem no JSON, o card fica sinalizado como lacuna.</p>
     </div>
     <div class="launch-hero-grid">
       ${hero.cards
@@ -2397,27 +2404,38 @@ function renderLaunchMetricGrid(analysis) {
     analysis.metrics.clientes_novos + analysis.metrics.clientes_recorrentes
   );
   const planning = analysis.planning || {};
+  const planningInvestment = planning.investmentReal || planning.investmentPlanned || 0;
+  const effectiveInvestment = analysis.media.investment || planningInvestment;
+  const effectiveRoas = safeDivide(analysis.media.attributedRevenue, effectiveInvestment);
+  const effectiveCpa = safeDivide(effectiveInvestment, analysis.media.attributedOrders);
+  const effectiveOrdersPer1k = safeDivide(analysis.media.attributedOrders, effectiveInvestment / 1000);
   const topModel = [...(analysis.productSummary.byProduct || [])].sort((a, b) => b.items - a.items || b.revenue - a.revenue)[0];
   const topColor = analysis.productSummary.byColor?.[0] || null;
   const topSize = analysis.productSummary.bySize?.[0] || null;
+  const topVariant = [...(analysis.productSummary.byVariant || [])].sort((a, b) => b.items - a.items || b.revenue - a.revenue)[0];
   const pairsPerOrder = safeDivide(analysis.productSummary.items, analysis.metrics.pedidos_aprovados);
   const hasLaunchCustomerFlag = Boolean(analysis.methodology?.hasCustomerFlag);
   const hasLaunchOrderIdentity = Boolean(analysis.methodology?.hasOrderIdentity);
   const cards = [
     [
-      "Tenis mais vendido",
+      "Tênis mais vendido",
       topModel ? escapeHtml(topModel.name) : "-",
-      topModel ? `${formatInteger(topModel.items)} itens - ${formatCurrency(topModel.revenue)}` : "Sem venda no periodo",
+      topModel ? `${formatInteger(topModel.items)} itens · ${formatCurrency(topModel.revenue)}` : "Sem venda no período",
     ],
     [
-      "Cor lider",
+      "Variação líder",
+      topVariant ? escapeHtml(formatLaunchVariantTitle(topVariant)) : "-",
+      topVariant ? `${formatInteger(topVariant.items)} itens · ${formatCurrency(topVariant.revenue)}${topVariant.sku ? ` · ${topVariant.sku}` : ""}` : "Sem venda no período",
+    ],
+    [
+      "Cor líder",
       topColor ? escapeHtml(topColor.label) : "-",
-      topColor ? `${formatInteger(topColor.items)} itens - ${formatCurrency(topColor.revenue)}` : "Sem cor mapeada",
+      topColor ? `${formatInteger(topColor.items)} itens · ${formatCurrency(topColor.revenue)}` : "Sem cor mapeada",
     ],
     [
-      "Tamanho lider",
+      "Tamanho líder",
       topSize ? escapeHtml(topSize.label) : "-",
-      topSize ? `${formatInteger(topSize.items)} itens - ${formatCurrency(topSize.revenue)}` : "Sem tamanho mapeado",
+      topSize ? `${formatInteger(topSize.items)} itens · ${formatCurrency(topSize.revenue)}` : "Sem tamanho mapeado",
     ],
     ["Receita modelo", formatCurrency(analysis.productSummary.revenue), variationBadge(analysis.revenueVariation)],
     ["Itens modelo", formatInteger(analysis.productSummary.items), `${formatCurrency(productTicket)} por item`],
@@ -2427,18 +2445,22 @@ function renderLaunchMetricGrid(analysis) {
     [
       "Clientes novos",
       hasLaunchCustomerFlag ? formatPercent(newShare) : "-",
-      hasLaunchCustomerFlag ? `${formatInteger(analysis.metrics.clientes_novos)} clientes` : "cliente_novo ausente no JSON do lancamento",
+      hasLaunchCustomerFlag ? `${formatInteger(analysis.metrics.clientes_novos)} clientes` : "cliente_novo ausente no JSON do lançamento",
     ],
     [
       "Pares por pedido",
       hasLaunchOrderIdentity ? formatRatio(pairsPerOrder) : "-",
       hasLaunchOrderIdentity
         ? `${formatInteger(analysis.productSummary.items)} itens / ${formatInteger(analysis.metrics.pedidos_aprovados)} pedidos`
-        : "order_id ausente; nao calcular como real",
+        : "order_id ausente; não calcular como real",
     ],
-    ["Investimento", formatCurrency(analysis.media.investment), `${formatDecimal(analysis.media.ordersPer1k)} pedidos / R$1k`],
-    ["ROAS / CPA", `${formatRoas(analysis.media.roas)} · ${formatCurrency(analysis.media.cpa)}`, `${formatCurrency(analysis.media.attributedRevenue)} UTM`],
-    ["Fonte da curva", analysis.dataSource?.label || "-", analysis.dataSource?.isFallback ? "Atualize o Apps Script para fechar os buracos" : "SKU/dia completo para lancamentos"],
+    [
+      "Investimento",
+      formatCurrency(effectiveInvestment),
+      `${formatDecimal(effectiveOrdersPer1k)} pedidos / R$1k${analysis.media.investment ? "" : planningInvestment ? " · planilha" : ""}`,
+    ],
+    ["ROAS / CPA", `${formatRoas(effectiveRoas)} · ${formatCurrency(effectiveCpa)}`, `${formatCurrency(analysis.media.attributedRevenue)} UTM`],
+    ["Fonte da curva", analysis.dataSource?.label || "-", analysis.dataSource?.isFallback ? "Atualize o Apps Script para fechar os buracos" : "SKU/dia completo para lançamentos"],
   ];
 
   if (planning.rows) {
@@ -2493,7 +2515,7 @@ function renderLaunchComparison(analysis) {
   grid.innerHTML =
     [
       !hasRealComparison
-        ? `<p class="launch-comparison-help">Este bloco nao adiciona modelos automaticamente. Para comparar curvas de lancamento, selecione 2 ou mais modelos no dropdown ou clique em Comparar Top 3.</p>`
+        ? `<p class="launch-comparison-help">Este bloco não adiciona modelos automaticamente. Para comparar curvas de lançamento, selecione 2 ou mais modelos no dropdown ou clique em Comparar Top 3.</p>`
         : "",
       rows
       .slice(0, 6)
@@ -2635,7 +2657,7 @@ function renderLaunchCurves(analysis) {
   }));
   if (note) {
     note.textContent = analysis.curve.sourceGap
-      ? "Fonte parcial: lacunas indicam dias sem captura no recorte atual, nao faturamento zero."
+      ? "Fonte parcial: lacunas indicam dias sem captura no recorte atual, não faturamento zero."
       : "Fonte completa: dias sem venda carregam o acumulado anterior.";
   }
 
@@ -2672,7 +2694,7 @@ function renderLaunchAcceleration(analysis) {
           <article class="launch-intelligence-card">
             <span>${escapeHtml(row.label)} - ${escapeHtml(row.range)}</span>
             <strong>${formatCurrency(row.revenue)}</strong>
-            <small>${formatInteger(row.items)} itens - ${formatInteger(row.orders)} pedidos - ${formatRatio(row.pairsPerOrder)} pares/pedido</small>
+            <small>${formatInteger(row.items)} itens · ${formatInteger(row.orders)} pedidos · ${formatRatio(row.pairsPerOrder)} pares/pedido</small>
             <em>${row.variation.label} vs semana anterior</em>
           </article>
         `
@@ -2691,13 +2713,13 @@ function renderLaunchSeasonality(analysis) {
         (row) => `
           <article class="launch-seasonality-row launch-seasonality-${slug(row.role)}">
             <div>
-              <span>${escapeHtml(row.role)} - ${escapeHtml(row.type)}</span>
+              <span>${escapeHtml(row.role)} · ${escapeHtml(row.type)}</span>
               <strong>${escapeHtml(row.title)}</strong>
-              <small>${formatShortDate(row.start)} a ${formatShortDate(row.end)} - ${formatInteger(row.days)} dia(s) na janela</small>
+              <small>${formatShortDate(row.start)} a ${formatShortDate(row.end)} · ${formatInteger(row.days)} dia(s) na janela</small>
             </div>
             <div>
               <strong>${formatCurrency(row.revenue)}</strong>
-              <small>${formatInteger(row.orders)} pedidos - ${row.variation.label} vs periodo anterior</small>
+              <small>${formatInteger(row.orders)} pedidos · ${row.variation.label} vs período anterior</small>
             </div>
           </article>
         `
@@ -2710,14 +2732,22 @@ function renderLaunchChannelBreakdown(analysis) {
   const target = document.getElementById("launchChannelBreakdown");
   if (!target) return;
   const channelRows = analysis.media.channelRows || [];
+  const planning = analysis.planning || {};
+  const planningInvestment = planning.investmentReal || planning.investmentPlanned || 0;
   const crm = channelRows.find((row) => row.channel === "CRM") || { revenue: 0, orders: 0, conversionProxy: 0 };
-  const paid = channelRows.find((row) => row.channel === "Midia paga") || {
+  const paidBase = channelRows.find((row) => normalizeComparableText(row.channel) === normalizeComparableText(PAID_MEDIA_CHANNEL)) || {
     revenue: 0,
     orders: 0,
     investment: analysis.media.investment,
     roas: analysis.media.roas,
     cpa: analysis.media.cpa,
   };
+  const paid = { ...paidBase };
+  if (!paid.investment && planningInvestment) {
+    paid.investment = planningInvestment;
+    paid.roas = safeDivide(paid.revenue || analysis.media.attributedRevenue, planningInvestment);
+    paid.cpa = safeDivide(planningInvestment, paid.orders || analysis.media.attributedOrders);
+  }
   const pairsPerOrder = safeDivide(analysis.productSummary.items, analysis.metrics.pedidos_aprovados);
   const hasLaunchOrderIdentity = Boolean(analysis.methodology?.hasOrderIdentity);
   const kpis = [
@@ -2729,17 +2759,18 @@ function renderLaunchChannelBreakdown(analysis) {
         : "order_id ausente no SKU/dia",
     ],
     ["CRM receita", formatCurrency(crm.revenue), `${formatInteger(crm.orders)} pedido(s) por UTM CRM`],
-    ["CRM conversao", crm.conversionProxy ? formatPercent(crm.conversionProxy) : "-", "Proxy por clique/impressao quando existir"],
-    ["Midia paga", formatRoas(paid.roas), `${formatCurrency(paid.investment || 0)} investido`],
+    ["CRM conversão", crm.conversionProxy ? formatPercent(crm.conversionProxy) : "-", "Proxy por clique/impressão quando existir"],
+    [PAID_MEDIA_CHANNEL, formatRoas(paid.roas), `${formatCurrency(paid.investment || 0)} investido`],
   ];
-  const channelHtml = channelRows
+  const displayChannelRows = channelRows.length || !planningInvestment ? channelRows : [{ ...paid, channel: PAID_MEDIA_CHANNEL }];
+  const channelHtml = displayChannelRows
     .slice(0, 5)
     .map(
       (row) => `
         <div class="launch-channel-row">
           <span>${escapeHtml(row.channel)}</span>
           <strong>${formatCurrency(row.revenue)}</strong>
-          <small>${formatInteger(row.orders)} pedidos - ${row.investment ? `${formatRoas(row.roas)} / CPA ${formatCurrency(row.cpa)}` : "sem custo mapeado"}</small>
+          <small>${formatInteger(row.orders)} pedidos · ${row.investment ? `${formatRoas(row.roas)} / CPA ${formatCurrency(row.cpa)}` : "sem custo mapeado"}</small>
         </div>
       `
     )
@@ -2821,8 +2852,8 @@ function renderLaunchProjection(analysis) {
   target.innerHTML = `
     <div class="section-heading launch-comparison-heading">
       <div>
-        <span class="eyebrow">Projecao</span>
-        <h2>Cenarios a partir de D+${Math.max(0, Number(projection.sourceDays || 0) - 1)}</h2>
+        <span class="eyebrow">Projeção</span>
+        <h2>Cenários a partir de D+${Math.max(0, Number(projection.sourceDays || 0) - 1)}</h2>
       </div>
       <span class="comparison-badge">${escapeHtml(benchmarkText)}</span>
     </div>
@@ -2855,6 +2886,13 @@ function formatLaunchCoverageNote(window = {}) {
   return "janela coberta";
 }
 
+function formatLaunchVariantTitle(item = {}) {
+  const model = cleanLaunchText(item.modelName || item.name || "");
+  const traits = [item.color, item.size].map(cleanLaunchText).filter((value) => value && !/^sem\s+/i.test(value));
+  const suffix = traits.length ? ` · ${traits.join(" / ")}` : "";
+  return `${model || "Variação"}${suffix}`;
+}
+
 function renderLaunchProductTable(analysis) {
   const body = document.getElementById("launchProductTable");
   const summary = document.getElementById("launchItemsSummary");
@@ -2862,15 +2900,32 @@ function renderLaunchProductTable(analysis) {
   const openButton = document.getElementById("openLaunchItemsDrawerButton");
   if (!body) return;
   const variants = analysis.productSummary.byVariant || [];
-  const topVariant = variants[0] || null;
+  const topVariant = [...variants].sort((a, b) => b.items - a.items || b.revenue - a.revenue)[0] || null;
+  const topRevenueVariant = variants[0] || null;
+  const topProduct = [...(analysis.productSummary.byProduct || [])].sort((a, b) => b.items - a.items || b.revenue - a.revenue)[0] || null;
   const topColor = analysis.productSummary.byColor?.[0] || null;
   const topSize = analysis.productSummary.bySize?.[0] || null;
+  const skuCount = new Set(variants.map((item) => item.sku).filter(Boolean)).size;
 
   const summaryCards = [
-    ["Variacoes", formatInteger(variants.length), `${formatInteger(analysis.productSummary.items)} itens`],
-    ["Top item", topVariant ? topVariant.modelName || topVariant.name : "-", topVariant ? `${formatInteger(topVariant.items)} itens` : "Sem venda"],
-    ["Cor lider", topColor ? topColor.label : "-", topColor ? `${formatInteger(topColor.items)} itens` : "Sem cor"],
-    ["Tamanho lider", topSize ? topSize.label : "-", topSize ? `${formatInteger(topSize.items)} itens` : "Sem tamanho"],
+    [
+      "Produto líder",
+      topProduct ? topProduct.name : "-",
+      topProduct ? `${formatInteger(topProduct.items)} itens · ${formatCurrency(topProduct.revenue)}` : "Sem venda",
+    ],
+    [
+      "Variação líder",
+      topVariant ? formatLaunchVariantTitle(topVariant) : "-",
+      topVariant ? `${formatInteger(topVariant.items)} itens · ${formatCurrency(topVariant.revenue)}${topVariant.sku ? ` · ${topVariant.sku}` : ""}` : "Sem venda",
+    ],
+    [
+      "Maior receita",
+      topRevenueVariant ? formatLaunchVariantTitle(topRevenueVariant) : "-",
+      topRevenueVariant ? `${formatCurrency(topRevenueVariant.revenue)} · ${formatInteger(topRevenueVariant.items)} itens` : "Sem receita",
+    ],
+    ["Cor líder", topColor ? topColor.label : "-", topColor ? `${formatInteger(topColor.items)} itens · ${formatCurrency(topColor.revenue)}` : "Sem cor"],
+    ["Tamanho líder", topSize ? topSize.label : "-", topSize ? `${formatInteger(topSize.items)} itens` : "Sem tamanho"],
+    ["SKUs analisados", formatInteger(skuCount || variants.length), `${formatInteger(variants.length)} variações no recorte`],
   ];
   const summaryHtml = summaryCards
     .map(
@@ -2914,17 +2969,24 @@ function renderLaunchMediaGrid(analysis) {
   if (!target) return;
   const media = analysis.media;
   const planning = analysis.planning || {};
+  const planningInvestment = planning.investmentReal || planning.investmentPlanned || 0;
+  const effectiveInvestment = media.investment || planningInvestment;
+  const effectiveCpc = safeDivide(effectiveInvestment, media.clicks);
+  const effectiveRoas = safeDivide(media.attributedRevenue, effectiveInvestment);
+  const effectiveCpa = safeDivide(effectiveInvestment, media.attributedOrders);
+  const effectiveOrdersPer1k = safeDivide(media.attributedOrders, effectiveInvestment / 1000);
   const items = [
-    ["Investimento", formatCurrency(media.investment), `${formatInteger(media.campaigns)} campanha(s)`],
+    ["Investimento", formatCurrency(effectiveInvestment), media.investment ? `${formatInteger(media.campaigns)} campanha(s)` : planningInvestment ? "planilha de lançamento" : `${formatInteger(media.campaigns)} campanha(s)`],
     ["Receita UTM", formatCurrency(media.attributedRevenue), `${formatInteger(media.attributedOrders)} pedido(s)`],
-    ["ROAS", formatRoas(media.roas), `CPA ${formatCurrency(media.cpa)}`],
-    ["Cliques", formatInteger(media.clicks), `CPC ${formatCurrency(media.cpc)}`],
+    ["ROAS", formatRoas(effectiveRoas), `CPA ${formatCurrency(effectiveCpa)}`],
+    ["Cliques", formatInteger(media.clicks), `CPC ${formatCurrency(effectiveCpc)}`],
     ["CTR", formatPercent(media.ctr), `${formatInteger(media.impressions)} impressões`],
-    ["Pedidos / R$1k", formatDecimal(media.ordersPer1k), media.filtered ? "campanha vinculada" : "janela completa"],
+    ["Pedidos / R$1k", formatDecimal(effectiveOrdersPer1k), media.filtered ? "campanha vinculada" : "janela completa"],
   ];
   if (planning.rows) {
+    const planningPeriod = planning.periodLabel || "data do lançamento";
     items.push(
-      ["Investimento planilha", formatCurrency(planning.investmentReal || planning.investmentPlanned), `${formatInteger(planning.rows)} linha(s)`],
+      ["Investimento planilha", formatCurrency(planning.investmentReal || planning.investmentPlanned), `${formatInteger(planning.rows)} linha(s) · ${planningPeriod}`],
       ["Receita planilha", formatCurrency(planning.revenueReal || planning.revenuePlanned), `Pedidos ${formatInteger(planning.ordersReal || planning.ordersPlanned)}`],
       ["ROAS planilha", formatRoas(planning.roas), `CPA ${formatCurrency(planning.cpa)}`]
     );
@@ -2973,7 +3035,7 @@ function getLaunchProductSourceMeta() {
   const hasFullLaunchRows = Boolean((state.data.lancamentosProdutos || []).length);
   return {
     key: hasFullLaunchRows ? "lancamentos_produtos_dia" : "produtos_dia",
-    label: hasFullLaunchRows ? "base completa de lancamentos" : "recorte top/queda de produtos",
+    label: hasFullLaunchRows ? "base completa de lançamentos" : "recorte top/queda de produtos",
     isFallback: !hasFullLaunchRows,
   };
 }
@@ -3216,7 +3278,7 @@ function launchProductMetaLabel(product = {}, options = {}) {
 }
 
 function launchProductDateLabel(product = {}) {
-  return product.launchDate ? `Lanc. ${formatShortDate(product.launchDate)}` : "Sem data";
+  return product.launchDate ? `Lanç. ${formatShortDate(product.launchDate)}` : "Sem data";
 }
 
 function launchWindowDateLabel(window = {}, product = {}) {
@@ -3282,6 +3344,10 @@ function summarizeLaunchPlanning(dateKeys, selectedProducts) {
   const investmentForEfficiency = investmentReal || investmentPlanned;
   const revenueForEfficiency = revenueReal || revenuePlanned;
   const ordersForEfficiency = ordersReal || ordersPlanned;
+  const rowStarts = rows.map((row) => row.data_inicio || row.data_lancamento).filter(Boolean).sort();
+  const rowEnds = rows.map((row) => row.data_fim || row.data_inicio || row.data_lancamento).filter(Boolean).sort();
+  const periodStart = rowStarts[0] || "";
+  const periodEnd = rowEnds[rowEnds.length - 1] || periodStart;
   return {
     rows: rows.length,
     investmentPlanned,
@@ -3290,6 +3356,15 @@ function summarizeLaunchPlanning(dateKeys, selectedProducts) {
     revenueReal,
     ordersPlanned,
     ordersReal,
+    periodStart,
+    periodEnd,
+    periodLabel: periodStart && periodEnd && periodStart !== periodEnd
+      ? `${formatShortDate(periodStart)} a ${formatShortDate(periodEnd)}`
+      : periodStart
+        ? formatShortDate(periodStart)
+        : "",
+    channels: [...new Set(rows.map((row) => row.canal).filter(Boolean))],
+    campaigns: [...new Set(rows.map((row) => row.campanha).filter(Boolean))],
     roas: safeDivide(revenueForEfficiency, investmentForEfficiency),
     cpa: safeDivide(investmentForEfficiency, ordersForEfficiency),
   };
@@ -3404,8 +3479,8 @@ function summarizeLaunchWorkbenchMedia(dateKeys, event) {
     current.rows += 1;
     channelMap.set(channel, current);
   });
-  const paidChannel = channelMap.get("Midia paga") || {
-    channel: "Midia paga",
+  const paidChannel = channelMap.get(PAID_MEDIA_CHANNEL) || {
+    channel: PAID_MEDIA_CHANNEL,
     revenue: 0,
     orders: 0,
     investment: 0,
@@ -3416,7 +3491,7 @@ function summarizeLaunchWorkbenchMedia(dateKeys, event) {
   paidChannel.investment += investment;
   paidChannel.clicks += clicks;
   paidChannel.impressions += impressions;
-  channelMap.set("Midia paga", paidChannel);
+  channelMap.set(PAID_MEDIA_CHANNEL, paidChannel);
   const channelRows = [...channelMap.values()]
     .map((row) => ({
       ...row,
@@ -3456,10 +3531,10 @@ function classifyLaunchChannel(row = {}) {
     return "CRM";
   }
   if (/(meta|facebook|instagram|google|ads|cpc|paid|pago|performance|max|tiktok|bing|youtube|display|search)/.test(text)) {
-    return "Midia paga";
+    return PAID_MEDIA_CHANNEL;
   }
   if (/(organic|organico|seo|direct|direto|referral|social|unknown|unattributed|sem-campanha)/.test(text)) {
-    return "Organico / direto";
+    return "Orgânico / direto";
   }
   return row.channel || row.utm_source || "Outros";
 }
@@ -3836,10 +3911,10 @@ function renderReadinessPlaybookItems(items = []) {
             <strong>${formatInteger(item.score || 0)}% pronto</strong>
           </div>
           <h4>${escapeHtml(item.name || "-")}</h4>
-          <p>${formatShortDate(item.date)} Â· faltam ${formatInteger(item.days_until)} dia(s)</p>
+          <p>${formatShortDate(item.date)} · faltam ${formatInteger(item.days_until)} dia(s)</p>
           <div class="readiness-metrics">
             <span>Lacuna: <strong>${formatCurrency(item.revenue_gap || 0)}</strong></span>
-            <span>Ritmo diario: <strong>${formatCurrency(item.daily_required || 0)}</strong></span>
+            <span>Ritmo diário: <strong>${formatCurrency(item.daily_required || 0)}</strong></span>
           </div>
           <ul class="readiness-checklist">${checklist}</ul>
           ${blockers ? `<div class="readiness-blockers">${blockers}</div>` : ""}
@@ -3852,7 +3927,7 @@ function renderReadinessPlaybookItems(items = []) {
 
 function renderActionPlanItems(items = []) {
   if (!items.length) {
-    return `<li><strong>Sem acao pendente</strong><span>O playbook nao encontrou pendencias executivas para as proximas datas.</span></li>`;
+    return `<li><strong>Sem ação pendente</strong><span>O playbook não encontrou pendências executivas para as próximas datas.</span></li>`;
   }
 
   return items
@@ -4024,19 +4099,29 @@ function renderChart(canvasId, labels, datasets, formatter) {
         data: dataset.data,
         borderColor: dataset.color,
         backgroundColor: dataset.fill ? dataset.fillColor || colorWithAlpha(dataset.color, 0.08) : "rgba(255, 255, 255, 0)",
-        borderWidth: 2,
-        pointRadius: 2,
-        pointHoverRadius: 5,
+        borderWidth: dataset.borderWidth || 2.6,
+        borderDash: dataset.borderDash || [],
+        borderCapStyle: "round",
+        borderJoinStyle: "round",
+        pointRadius: dataset.pointRadius ?? 2.2,
+        pointHoverRadius: dataset.pointHoverRadius || 5,
+        pointHitRadius: 8,
+        pointStyle: dataset.pointStyle || "circle",
         pointBackgroundColor: "#ffffff",
         pointBorderColor: dataset.color,
-        pointBorderWidth: 1.5,
+        pointBorderWidth: 1.8,
         fill: dataset.fill,
         tension: 0.35,
+        spanGaps: false,
       })),
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        mode: "nearest",
+        intersect: false,
+      },
       plugins: {
         legend: {
           display: chartDatasets.length > 1,
@@ -4083,6 +4168,7 @@ function renderChart(canvasId, labels, datasets, formatter) {
         },
         y: {
           beginAtZero: true,
+          grace: "8%",
           border: { display: false },
           grid: { color: CHART_GRID_COLOR, drawBorder: false },
           ticks: {
@@ -4129,8 +4215,9 @@ function configureChartDefaults() {
 function normalizeChartDatasets(canvasId, datasets) {
   const modelNames = datasets.map((dataset) => dataset.model || dataset.label).filter(Boolean);
   return datasets.map((dataset, index) => {
-    const label = dataset.label || `Serie ${index + 1}`;
+    const label = dataset.label || `Série ${index + 1}`;
     const colorConfig = resolveChartDatasetColor(canvasId, dataset, index, modelNames);
+    const visualConfig = resolveChartDatasetVisual(canvasId, label, index, modelNames);
     return {
       ...dataset,
       label,
@@ -4138,6 +4225,10 @@ function normalizeChartDatasets(canvasId, datasets) {
       color: colorConfig.line,
       fillColor: colorConfig.fill,
       fill: Boolean(dataset.fill),
+      borderDash: dataset.borderDash || visualConfig.borderDash,
+      pointStyle: dataset.pointStyle || visualConfig.pointStyle,
+      borderWidth: dataset.borderWidth || visualConfig.borderWidth,
+      pointRadius: dataset.pointRadius ?? visualConfig.pointRadius,
     };
   });
 }
@@ -4149,6 +4240,21 @@ function resolveChartDatasetColor(canvasId, dataset, index, modelNames) {
   }
   const line = dataset.color || CHART_FALLBACK_COLORS[index % CHART_FALLBACK_COLORS.length];
   return { line, fill: colorWithAlpha(line, 0.08) };
+}
+
+function resolveChartDatasetVisual(canvasId, label, index, modelNames = []) {
+  if (!LAUNCH_CHART_CANVAS_IDS.has(canvasId) || !isLaunchModelLabel(label)) {
+    return { borderDash: [], pointStyle: "circle", borderWidth: 2.4, pointRadius: 2 };
+  }
+  const key = modelColorKey(label);
+  const sortedKeys = [...new Set(modelNames.map(modelColorKey).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const visualIndex = sortedKeys.indexOf(key) >= 0 ? sortedKeys.indexOf(key) : stableStringIndex(key, LAUNCH_LINE_DASHES.length);
+  return {
+    borderDash: LAUNCH_LINE_DASHES[visualIndex % LAUNCH_LINE_DASHES.length],
+    pointStyle: LAUNCH_POINT_STYLES[visualIndex % LAUNCH_POINT_STYLES.length],
+    borderWidth: 2.8,
+    pointRadius: 2.4,
+  };
 }
 
 function isLaunchModelLabel(label) {
