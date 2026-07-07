@@ -2454,6 +2454,46 @@ textarea {
   line-height: 1.35;
 }
 
+.launch-window-card {
+  align-content: start;
+  gap: 9px;
+}
+
+.launch-window-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.launch-window-card-head small {
+  color: var(--gray-500);
+  text-align: right;
+}
+
+.launch-window-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.launch-window-card-grid small {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid var(--gray-100);
+  border-radius: 6px;
+  padding: 7px;
+  background: #fbfcfb;
+}
+
+.launch-window-card-grid b {
+  color: var(--gray-500);
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .launch-chart-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2988,10 +3028,11 @@ textarea {
   cursor: help;
   font-size: 0.76rem;
   font-weight: 900;
+  font-style: italic;
 }
 
 .chart-help::after {
-  content: attr(aria-label);
+  content: attr(data-tooltip);
   position: absolute;
   right: 0;
   bottom: calc(100% + 8px);

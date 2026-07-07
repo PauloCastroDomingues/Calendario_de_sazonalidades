@@ -62,6 +62,13 @@ const LAUNCH_INVESTMENTS_HEADER = [
   "pedidos_reais",
   "status",
 ];
+const SHEET_DATE_FIELDS = [
+  "data_inicio",
+  "data_fim",
+  "data_lancamento",
+  "data_oficial",
+  "day_zero_base",
+];
 
 const EXPORTS = [
   {
@@ -937,7 +944,7 @@ function eventObjectToRow_(event) {
 function normalizeSheetValue_(value, field) {
   if (value === null || value === undefined) return "";
   if (value instanceof Date) {
-    if (field === "data_inicio" || field === "data_fim" || field === "data_lancamento") {
+    if (SHEET_DATE_FIELDS.indexOf(field) >= 0) {
       return Utilities.formatDate(value, TZ, "yyyy-MM-dd");
     }
     return Utilities.formatDate(value, "UTC", "yyyy-MM-dd'T'HH:mm:ss'Z'");

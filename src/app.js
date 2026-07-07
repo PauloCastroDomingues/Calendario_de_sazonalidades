@@ -85,6 +85,20 @@ const LAUNCH_CHART_CANVAS_IDS = new Set([
   "launchMixChart",
   "launchWeeklyRevenueChart",
 ]);
+const LAUNCH_CHART_ANALYSIS_NOTES = {
+  launchCurveChart:
+    "Faturamento acumulado por modelo a partir do D0 oficial. A curva soma vendas do próprio modelo; dias cobertos sem venda mantêm o acumulado anterior.",
+  launchDailyChart:
+    "Itens vendidos do modelo por dia relativo contra pedidos do contexto comercial na mesma data. Use para ver se o lançamento acompanhou ou superou o tráfego de pedidos.",
+  launchItemsCurveChart:
+    "Pares ou itens acumulados desde o D0 oficial. Ajuda a comparar tração física entre modelos, separada de preço e ticket.",
+  launchMultiplierChart:
+    "Multiplicador de aceleração do acumulado. Mostra crescimento relativo da curva para evidenciar variações mesmo quando os volumes absolutos são próximos.",
+  launchMixChart:
+    "Participação semanal de cada modelo na receita dos lançamentos selecionados. Use para entender mudança de mix ao longo da janela.",
+  launchWeeklyRevenueChart:
+    "Receita por semana relativa, agrupada em S1, S2, S3 e assim por diante. Mostra em qual semana cada modelo ganhou ou perdeu ritmo.",
+};
 const LAUNCH_PALETTE = {
   gt: { line: "#b98d43", fill: "rgba(185, 141, 67, 0.08)" },
   gtcollection: { line: "#b98d43", fill: "rgba(185, 141, 67, 0.08)" },
@@ -1802,10 +1816,11 @@ function buildLaunchProductWindows(selectedProducts, windowDays, cutoff, fallbac
 }
 
 function resolveLaunchWindowStart(product = {}, fallbackLaunchDate = "") {
-  const registeredLaunchDate = product.launchDate || "";
-  const officialLaunchDate = product.officialLaunchDate || registeredLaunchDate;
-  const dayZeroBase = product.config?.day_zero_base || "";
-  const firstCapturedDate = product.firstDate && (product.revenue || product.items) ? product.firstDate : "";
+  const registeredLaunchDate = normalizeDateKey(product.launchDate || "");
+  const officialLaunchDate = normalizeDateKey(product.officialLaunchDate || "") || registeredLaunchDate;
+  const dayZeroBase = normalizeDateKey(product.config?.day_zero_base || "");
+  const firstCapturedDate = product.firstDate && (product.revenue || product.items) ? normalizeDateKey(product.firstDate) : "";
+  const fallbackDate = normalizeDateKey(fallbackLaunchDate || "");
   const shouldUseCapturedDate =
     String(product.config?.confiabilidade || "").toLowerCase() === "gap_base" &&
     firstCapturedDate &&
@@ -1816,7 +1831,7 @@ function resolveLaunchWindowStart(product = {}, fallbackLaunchDate = "") {
     (shouldUseCapturedDate ? firstCapturedDate : registeredLaunchDate) ||
     officialLaunchDate ||
     firstCapturedDate ||
-    fallbackLaunchDate;
+    fallbackDate;
 
   return {
     registeredLaunchDate,
@@ -2868,10 +2883,19 @@ function renderLaunchWindowCards(analysis) {
     .map(
       (window) => `
         <article class="launch-window-card">
-          <span>${escapeHtml(window.label)}</span>
+          <div class="launch-window-card-head">
+            <span>${escapeHtml(window.label)}</span>
+            <small>${escapeHtml(formatLaunchCoverageNote(window))}</small>
+          </div>
           <strong>${formatCurrency(window.productRevenue)}</strong>
-          <small>${escapeHtml(formatLaunchCoverageNote(window))}</small>
-          <small>${formatInteger(window.productItems)} itens · ${formatInteger(window.orders)} pedidos · ${formatRoas(window.roas)}</small>
+          <div class="launch-window-card-grid">
+            <small><b>Modelo</b>${escapeHtml(window.topProductName || window.productLabel || "-")}</small>
+            <small><b>Variação líder</b>${escapeHtml(window.topVariantLabel || "-")}</small>
+            <small><b>Itens</b>${formatInteger(window.productItems)}</small>
+            <small><b>${escapeHtml(window.orderLabel)}</b>${formatInteger(window.orders)}</small>
+            <small><b>Ticket/par</b>${formatCurrency(window.ticketPerItem)}</small>
+            <small><b>ROAS</b>${formatRoas(window.roas)}</small>
+          </div>
         </article>
       `
     )
@@ -3627,25 +3651,36 @@ function collectEventsInRange(start, end) {
 function buildLaunchWorkbenchWindows(productWindows, event) {
   const selectedProducts = productWindows.map((window) => window.product);
   return LAUNCH_RELATIVE_WINDOWS.map((checkpoint) => {
-    const productRows = productWindows.flatMap((window) =>
-      filterProductRowsByKeys(launchCoveredKeys(window, window.actualKeys.slice(0, checkpoint.days)), [window.productKey])
+    const coveredKeysByWindow = productWindows.map((window) =>
+      launchCoveredKeys(window, window.actualKeys.slice(0, checkpoint.days))
+    );
+    const productRows = productWindows.flatMap((window, index) =>
+      filterProductRowsByKeys(coveredKeysByWindow[index], [window.productKey])
     );
     const contextKeys = uniqueDateKeys(
-      productWindows.flatMap((window) => launchCoveredKeys(window, window.actualKeys.slice(0, checkpoint.days)))
+      productWindows.flatMap((_, index) => coveredKeysByWindow[index])
     );
     const products = summarizeLaunchWorkbenchProducts(productRows, selectedProducts);
+    const topProduct = [...(products.byProduct || [])].sort((a, b) => b.items - a.items || b.revenue - a.revenue)[0] || null;
+    const topVariant = [...(products.byVariant || [])].sort((a, b) => b.items - a.items || b.revenue - a.revenue)[0] || null;
+    const productOrders = deriveLaunchProductOrders(productRows);
     const metrics = getMetricSummary(contextKeys);
     const media = summarizeLaunchWorkbenchMedia(contextKeys, event);
-    const coveredDays = Math.max(
-      0,
-      ...productWindows.map((window) => launchCoveredKeys(window, window.actualKeys.slice(0, checkpoint.days)).length)
-    );
+    const coveredDays = Math.max(0, ...coveredKeysByWindow.map((keys) => keys.length));
     const coverageStatus = !coveredDays ? "no_coverage" : coveredDays >= checkpoint.days ? "complete" : "partial";
+    const orders = productOrders.available ? productOrders.value : metrics.pedidos_aprovados;
     return {
       label: checkpoint.label,
+      productLabel: selectedProducts.map((product) => product?.name).filter(Boolean).join(" + "),
       productRevenue: products.revenue,
       productItems: products.items,
-      orders: metrics.pedidos_aprovados,
+      topProductName: topProduct?.name || "",
+      topVariantLabel: topVariant ? formatLaunchVariantTitle(topVariant) : "",
+      orders,
+      orderLabel: productOrders.available ? "Pedidos produto" : "Pedidos contexto",
+      contextOrders: metrics.pedidos_aprovados,
+      hasProductOrders: productOrders.available,
+      ticketPerItem: safeDivide(products.revenue, products.items),
       roas: media.roas,
       coverageStatus,
       coveredDays,
@@ -4070,6 +4105,11 @@ function alignComparisonData(currentKeys, comparisonKeys, valueGetter) {
 function renderChart(canvasId, labels, datasets, formatter) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
+  const analysisNote = getChartAnalysisNote(canvasId);
+  if (analysisNote) {
+    canvas.title = analysisNote;
+    canvas.setAttribute("aria-label", analysisNote);
+  }
 
   if (!window.Chart) {
     renderFallbackChart(canvas, datasets, formatter);
@@ -4146,11 +4186,14 @@ function renderChart(canvasId, labels, datasets, formatter) {
           titleFont: { family: CHART_FONT_FAMILY, size: 11, weight: "700" },
           bodyColor: "rgba(255, 255, 255, 0.82)",
           bodyFont: { family: CHART_FONT_FAMILY, size: 11 },
+          footerColor: "rgba(255, 255, 255, 0.74)",
+          footerFont: { family: CHART_FONT_FAMILY, size: 10, weight: "500" },
           callbacks: {
             label: (context) =>
               isCurrencyChart
                 ? ` ${context.dataset.label}: ${formatCurrency(context.parsed.y)}`
                 : ` ${context.dataset.label}: ${formatter(context.parsed.y)}`,
+            afterBody: () => (analysisNote ? ["", analysisNote] : []),
           },
         },
       },
@@ -4181,6 +4224,14 @@ function renderChart(canvasId, labels, datasets, formatter) {
       },
     },
   });
+}
+
+function getChartAnalysisNote(canvasId = "") {
+  if (LAUNCH_CHART_ANALYSIS_NOTES[canvasId]) return LAUNCH_CHART_ANALYSIS_NOTES[canvasId];
+  if (String(canvasId).startsWith("launchComparison")) {
+    return "Compara modelos por checkpoints relativos ao D0 oficial. Cada ponto usa a data real equivalente de cada lançamento.";
+  }
+  return "";
 }
 
 function configureChartDefaults() {

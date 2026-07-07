@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.33 - 2026-07-07
+
+- Corrigida a resolucao de D0 para normalizar timestamps vindos da planilha antes de montar janelas de Avant, GT e demais modelos.
+- Tooltips dos graficos de lancamento agora aparecem tambem no tooltip do Chart.js e no `title` nativo do icone de ajuda.
+- Cards de janelas passam a mostrar modelo, variacao lider, itens, pedidos do produto quando disponivel, pedidos de contexto quando necessario, ticket por par e ROAS.
+- Atualizado cache bust dos assets para `v=0.5.33`.
+
 ## 0.5.32 - 2026-07-07
 
 - Refinada a aba de lancamentos com correcoes de portugues em textos executivos, estados vazios e labels de graficos.
