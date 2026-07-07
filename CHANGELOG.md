@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.36 - 2026-07-07
+
+- Corrigido o cadastro oficial de `GT Collection`: lancamento oficial em 18/10/2024, D0 usado em 11/02/2025 e `confiabilidade=gap_base`.
+- Corrigido o cadastro oficial de `Avant`: lancamento/D0 em 02/10/2025, com gap zero.
+- Exportacoes de `produtos_dia` e `lancamentos_produtos_dia` voltam a usar `mart_shared.fct_order_item` em `southamerica-east1`, para cobrir o historico anterior a dezembro/2025.
+- Adicionada query `queries/validacao_lancamentos_modelos.sql` para validar primeira venda, gap, receita e itens no D0 de GT Collection e Avant.
+- Atualizado cache bust dos assets para `v=0.5.36`.
+
 ## 0.5.35 - 2026-07-07
 
 - Criada regra explicita de familia antes de qualquer fallback: todo produto com `GT`, `Avant`, `Phantom` ou `Monochrome` no nome/SKU entra na respectiva linha.

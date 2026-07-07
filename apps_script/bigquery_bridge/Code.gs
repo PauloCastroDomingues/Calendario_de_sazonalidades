@@ -116,19 +116,20 @@ const EXPORTS = [
     name: "produtos_dia",
     outputPath: "data/produtos_dia.json",
     filterByDate: true,
-    location: "US",
+    location: "southamerica-east1",
     launchModelFilter: true,
     sql: [
       "WITH produtos AS (",
       "  SELECT",
-      "    data,",
+      "    order_partition_date_brt AS data,",
       "    sku,",
       "    REGEXP_REPLACE(LOWER(COALESCE(item_name, sku)), r'[^a-z0-9]+', '-') AS product_key,",
       "    COALESCE(item_name, sku) AS product_name,",
       "    CAST(NULL AS STRING) AS variant_title,",
-      "    SUM(units) AS itens_vendidos,",
-      "    SUM(net_revenue) AS receita_produto",
-      "  FROM `reise-ssot.mart_growth_us.shopify_sales_by_sku_daily_v`",
+      "    SUM(quantity) AS itens_vendidos,",
+      "    SUM(line_net_amount) AS receita_produto",
+      "  FROM `reise-ssot.mart_shared.fct_order_item`",
+      "  WHERE is_valid_order = TRUE",
       "  GROUP BY 1, 2, 3, 4, 5",
       "),",
       "ranked AS (",
@@ -162,21 +163,22 @@ const EXPORTS = [
     name: "lancamentos_produtos_dia",
     outputPath: LAUNCH_PRODUCTS_OUTPUT_PATH,
     filterByDate: true,
-    location: "US",
+    location: "southamerica-east1",
     launchModelFilter: true,
     sql: [
       "SELECT",
-      "  data,",
+      "  order_partition_date_brt AS data,",
       "  sku,",
       "  REGEXP_REPLACE(LOWER(COALESCE(item_name, sku)), r'[^a-z0-9]+', '-') AS product_key,",
       "  COALESCE(item_name, sku) AS product_name,",
       "  CAST(NULL AS STRING) AS variant_title,",
-      "  SUM(units) AS itens_vendidos,",
-      "  SUM(net_revenue) AS receita_produto,",
+      "  SUM(quantity) AS itens_vendidos,",
+      "  SUM(line_net_amount) AS receita_produto,",
       "  CAST('lancamento' AS STRING) AS classificacao",
-      "FROM `reise-ssot.mart_growth_us.shopify_sales_by_sku_daily_v`",
+      "FROM `reise-ssot.mart_shared.fct_order_item`",
       "WHERE",
-      "  REGEXP_CONTAINS(LOWER(CONCAT(COALESCE(item_name, ''), ' ', COALESCE(sku, ''))), @launch_model_regex)",
+      "  is_valid_order = TRUE",
+      "  AND REGEXP_CONTAINS(LOWER(CONCAT(COALESCE(item_name, ''), ' ', COALESCE(sku, ''))), @launch_model_regex)",
       "GROUP BY 1, 2, 3, 4, 5",
       "ORDER BY data, receita_produto DESC",
     ].join("\n"),
@@ -355,6 +357,108 @@ function statusBigQuery() {
   };
   console.log(JSON.stringify(status, null, 2));
   return status;
+}
+
+function validarLancamentosModelos() {
+  const config = getConfig_();
+  const request = {
+    query: buildLaunchValidationQuery_(),
+    useLegacySql: false,
+    useQueryCache: true,
+    location: "southamerica-east1",
+    maximumBytesBilled: String(config.maxBytesBilled),
+  };
+  let response = BigQuery.Jobs.query(request, config.bqProjectId);
+  const jobId = response.jobReference.jobId;
+  const jobProjectId = response.jobReference.projectId || config.bqProjectId;
+
+  while (!response.jobComplete) {
+    Utilities.sleep(1000);
+    response = BigQuery.Jobs.getQueryResults(jobProjectId, jobId, { location: "southamerica-east1" });
+  }
+
+  const rows = [];
+  const fields = response.schema ? response.schema.fields : [];
+  appendRows_(rows, fields, response.rows || []);
+  let pageToken = response.pageToken;
+  while (pageToken) {
+    const page = BigQuery.Jobs.getQueryResults(jobProjectId, jobId, {
+      location: "southamerica-east1",
+      pageToken: pageToken,
+      maxResults: 10000,
+    });
+    appendRows_(rows, fields, page.rows || []);
+    pageToken = page.pageToken;
+  }
+  console.log(JSON.stringify(rows, null, 2));
+  return rows;
+}
+
+function buildLaunchValidationQuery_() {
+  return [
+    "WITH modelos AS (",
+    "  SELECT",
+    "    'GT Collection' AS modelo,",
+    "    'GT' AS linha,",
+    "    DATE '2024-10-18' AS data_oficial,",
+    "    DATE '2025-02-11' AS d0_usado,",
+    "    r'(^|[^a-z0-9])(gt)([^a-z0-9]|$)|rs[67]gt|knitgt|911gt' AS regex",
+    "  UNION ALL",
+    "  SELECT",
+    "    'Avant' AS modelo,",
+    "    'Avant' AS linha,",
+    "    DATE '2025-10-02' AS data_oficial,",
+    "    DATE '2025-10-02' AS d0_usado,",
+    "    r'avant|rs[678]avant' AS regex",
+    "),",
+    "vendas AS (",
+    "  SELECT",
+    "    m.modelo,",
+    "    m.linha,",
+    "    m.data_oficial,",
+    "    m.d0_usado,",
+    "    oi.order_partition_date_brt AS data,",
+    "    oi.sku,",
+    "    COALESCE(oi.item_name, oi.sku) AS product_name,",
+    "    oi.quantity,",
+    "    oi.line_net_amount",
+    "  FROM modelos m",
+    "  JOIN `reise-ssot.mart_shared.fct_order_item` oi",
+    "    ON REGEXP_CONTAINS(",
+    "      LOWER(CONCAT(COALESCE(oi.item_name, ''), ' ', COALESCE(oi.sku, ''))),",
+    "      m.regex",
+    "    )",
+    "  WHERE oi.is_valid_order = TRUE",
+    "),",
+    "resumo AS (",
+    "  SELECT",
+    "    modelo,",
+    "    linha,",
+    "    data_oficial,",
+    "    d0_usado,",
+    "    MIN(data) AS primeira_venda_base,",
+    "    DATE_DIFF(MIN(data), data_oficial, DAY) AS gap_primeira_venda_vs_oficial,",
+    "    SUM(IF(data = d0_usado, quantity, 0)) AS itens_d0,",
+    "    SUM(IF(data = d0_usado, line_net_amount, 0)) AS receita_d0,",
+    "    COUNT(DISTINCT IF(data = d0_usado, sku, NULL)) AS skus_d0,",
+    "    COUNT(DISTINCT data) AS dias_com_venda,",
+    "    SUM(quantity) AS itens_total,",
+    "    SUM(line_net_amount) AS receita_total",
+    "  FROM vendas",
+    "  GROUP BY 1, 2, 3, 4",
+    ")",
+    "SELECT",
+    "  *,",
+    "  CASE",
+    "    WHEN modelo = 'GT Collection'",
+    "      THEN primeira_venda_base = d0_usado AND gap_primeira_venda_vs_oficial = 116",
+    "    WHEN modelo = 'Avant'",
+    "      THEN primeira_venda_base = data_oficial AND d0_usado = data_oficial AND gap_primeira_venda_vs_oficial = 0",
+    "    ELSE FALSE",
+    "  END AS validacao_ok",
+    "FROM resumo",
+    "ORDER BY modelo",
+  ].join("\n");
 }
 
 function instalarBaseEventosManuais() {
