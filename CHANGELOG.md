@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.34 - 2026-07-07
+
+- A aba de lancamentos passa a listar como modelos analisaveis apenas os modelos oficiais cadastrados em `lancamentos_modelos`, evitando que produtos soltos usem primeira venda como D0.
+- Graficos de curvas agora respeitam cobertura de dados: dias fora da base carregada ficam sem ponto, e zero passa a significar venda zero em dia coberto.
+- Cadastro local de `lancamentos_modelos` foi saneado com `modelo_id`, `linha`, `termos_busca`, `sku_prefixos` e datas ISO para GT, Avant, Phantom e RS8 Avant Monochrome.
+- Atualizado cache bust dos assets para `v=0.5.34`.
+
 ## 0.5.33 - 2026-07-07
 
 - Corrigida a resolucao de D0 para normalizar timestamps vindos da planilha antes de montar janelas de Avant, GT e demais modelos.

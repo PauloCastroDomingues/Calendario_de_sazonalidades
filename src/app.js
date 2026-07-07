@@ -1728,9 +1728,9 @@ function buildLaunchWorkbenchAnalysis() {
   const launchDate = productWindows[0]?.launchDate || fallbackLaunchDate;
   const plannedEnd = maxDateKey(productWindows.map((item) => item.plannedEnd)) || addDays(launchDate, windowDays - 1);
   const actualEnd = maxDateKey(productWindows.map((item) => item.actualEnd)) || plannedEnd;
-  const hasActuals = productWindows.some((item) => item.actualKeys.length);
-  const actualKeys = uniqueDateKeys(productWindows.flatMap((item) => item.actualKeys));
-  const baselineKeys = uniqueDateKeys(productWindows.flatMap((item) => item.baselineKeys));
+  const actualKeys = uniqueDateKeys(productWindows.flatMap((item) => launchCoveredKeys(item, item.actualKeys)));
+  const baselineKeys = uniqueDateKeys(productWindows.flatMap((item) => launchCoveredKeys(item, item.baselineKeys)));
+  const hasActuals = actualKeys.length > 0;
   const productRows = filterProductRowsByWindows(productWindows, "actualKeys");
   const baselineProductRows = filterProductRowsByWindows(productWindows, "baselineKeys");
   const productSummary = summarizeLaunchWorkbenchProducts(productRows, selectedProducts);
@@ -2276,7 +2276,9 @@ function findLaunchPeakWeek(window) {
 }
 
 function filterProductRowsByWindows(productWindows, keyField) {
-  return productWindows.flatMap((window) => filterProductRowsByKeys(window[keyField] || [], [window.productKey]));
+  return productWindows.flatMap((window) =>
+    filterProductRowsByKeys(launchCoveredKeys(window, window[keyField] || []), [window.productKey])
+  );
 }
 
 function renderLaunchInsight(analysis) {
@@ -3067,8 +3069,10 @@ function getLaunchProductSourceMeta() {
 function collectLaunchProducts() {
   const map = new Map();
   const modelConfigs = state.data.lancamentosModelos || [];
+  const requireOfficialConfig = modelConfigs.length > 0;
   getLaunchProductRows().forEach((row) => {
     const identity = launchModelIdentity(row, modelConfigs);
+    if (requireOfficialConfig && !identity.config) return;
     const key = identity.key;
     if (!key) return;
     const variant = parseLaunchVariant(row);
@@ -3694,10 +3698,13 @@ function buildLaunchCurve(productWindows, selectedProducts) {
   const maxDays = Math.max(0, ...productWindows.map((window) => window.actualKeys.length));
   const labels = Array.from({ length: maxDays }, (_, index) => `D+${index}`);
   const dailyItems = labels.map((_, index) => {
+    let covered = false;
     let captured = false;
     const value = productWindows.reduce((sum, window) => {
       const dateKey = window.actualKeys[index];
       if (!dateKey) return sum;
+      if (!isLaunchDateCovered(window, dateKey)) return sum;
+      covered = true;
       const rows = filterProductRowsByKeys([dateKey], [window.productKey]);
       if (rows.length) captured = true;
       const items = rows.reduce(
@@ -3706,11 +3713,16 @@ function buildLaunchCurve(productWindows, selectedProducts) {
       );
       return sum + items;
     }, 0);
+    if (!covered) return null;
     return sourceGap && !captured ? null : value;
   });
   const dailyOrders = labels.map((_, index) => {
-    const keys = uniqueDateKeys(productWindows.map((window) => window.actualKeys[index]).filter(Boolean));
-    return getMetricSummary(keys).pedidos_aprovados;
+    const keys = uniqueDateKeys(
+      productWindows
+        .map((window) => window.actualKeys[index])
+        .filter((dateKey, windowIndex) => dateKey && isLaunchDateCovered(productWindows[windowIndex], dateKey))
+    );
+    return keys.length ? getMetricSummary(keys).pedidos_aprovados : null;
   });
   const revenueSeries = selectedProducts.slice(0, 6).map((product) => {
     let cumulative = 0;
@@ -3720,6 +3732,7 @@ function buildLaunchCurve(productWindows, selectedProducts) {
       values: labels.map((_, index) => {
         const dateKey = productWindow?.actualKeys[index];
         if (!dateKey) return null;
+        if (!isLaunchDateCovered(productWindow, dateKey)) return null;
         const rows = filterProductRowsByKeys([dateKey], [product.key]);
         if (sourceGap && !rows.length) return null;
         const dayRevenue = rows.reduce(
@@ -3760,6 +3773,7 @@ function buildLaunchCumulativeSeries(productWindows, selectedProducts, labels, f
       values: labels.map((_, dayIndex) => {
         const dateKey = productWindow?.actualKeys[dayIndex];
         if (!dateKey) return null;
+        if (!isLaunchDateCovered(productWindow, dateKey)) return null;
         const rows = filterProductRowsByKeys([dateKey], [product.key]);
         if (sourceGap && !rows.length) return null;
         cumulative += rows.reduce((sum, row) => sum + Number(row[field] || 0), 0);
@@ -3768,6 +3782,7 @@ function buildLaunchCumulativeSeries(productWindows, selectedProducts, labels, f
       data: labels.map((_, dayIndex) => {
         const dateKey = productWindow?.actualKeys[dayIndex];
         if (!dateKey) return null;
+        if (!isLaunchDateCovered(productWindow, dateKey)) return null;
         const rows = filterProductRowsByKeys([dateKey], [product.key]);
         if (sourceGap && !rows.length) return null;
         return rows.reduce((sum, row) => sum + Number(row[field] || 0), 0);
@@ -3797,6 +3812,7 @@ function buildLaunchMultiplierSeries(productWindows, selectedProducts, labels, s
     const values = labels.map((_, dayIndex) => {
       const dateKey = productWindow?.actualKeys[dayIndex];
       if (!dateKey) return null;
+      if (!isLaunchDateCovered(productWindow, dateKey)) return null;
       const rows = filterProductRowsByKeys([dateKey], [product.key]);
       if (sourceGap && !rows.length) return null;
       cumulative += rows.reduce((sum, row) => sum + Number(row.receita_produto || 0), 0);
@@ -3822,7 +3838,8 @@ function buildLaunchWeeklyCurveSeries(productWindows, selectedProducts, sourceGa
     const productWindow = productWindows.find((window) => window.productKey === product.key);
     return labels.map((_, weekIndex) => {
       const start = weekIndex * 7;
-      const keys = productWindow?.actualKeys.slice(start, start + 7) || [];
+      const keys = launchCoveredKeys(productWindow, productWindow?.actualKeys.slice(start, start + 7) || []);
+      if (!keys.length) return null;
       const rows = keys.flatMap((dateKey) => filterProductRowsByKeys([dateKey], [product.key]));
       if (sourceGap && !rows.length) return null;
       return rows.reduce((sum, row) => sum + Number(row.receita_produto || 0), 0);
@@ -3843,7 +3860,9 @@ function buildLaunchWeeklyCurveSeries(productWindows, selectedProducts, sourceGa
       label: product.name,
       color: launchChartColorForModel(product.name, productNames),
       fill: false,
-      data: (weeklyValuesByProduct[index] || []).map((value, weekIndex) => safeDivide(value, weeklyTotals[weekIndex])),
+      data: (weeklyValuesByProduct[index] || []).map((value, weekIndex) =>
+        value === null ? null : safeDivide(value, weeklyTotals[weekIndex])
+      ),
     })),
   };
 }
@@ -3853,11 +3872,11 @@ function launchChartColorForModel(modelName, modelNames = []) {
 }
 
 function getLaunchColor(modelName, modelNames = []) {
-  const key = modelColorKey(modelName);
+  const key = launchColorKeyForModel(modelName);
   if (LAUNCH_PALETTE[key]) return LAUNCH_PALETTE[key];
 
-  const sheetKeys = (state.data.lancamentosModelos || []).map((model) => modelColorKey(model.modelo));
-  const sortedKeys = [...new Set(sheetKeys.length ? sheetKeys : modelNames.map(modelColorKey).filter(Boolean))]
+  const sheetKeys = (state.data.lancamentosModelos || []).map((model) => launchColorKeyForModel(model.modelo));
+  const sortedKeys = [...new Set(sheetKeys.length ? sheetKeys : modelNames.map(launchColorKeyForModel).filter(Boolean))]
     .filter((item) => !LAUNCH_PALETTE[item])
     .sort((a, b) => a.localeCompare(b, "pt-BR"));
   const index = sortedKeys.indexOf(key);
@@ -3865,6 +3884,15 @@ function getLaunchColor(modelName, modelNames = []) {
     index < 0 ? stableStringIndex(key, LAUNCH_MODEL_COLOR_PALETTE.length) : index % LAUNCH_MODEL_COLOR_PALETTE.length;
   const line = LAUNCH_MODEL_COLOR_PALETTE[paletteIndex];
   return { line, fill: colorWithAlpha(line, paletteIndex === 1 ? 0.06 : 0.08) };
+}
+
+function launchColorKeyForModel(modelName = "") {
+  const text = normalizeComparableText(modelName);
+  const pattern = LAUNCH_MODEL_PATTERNS.find((item) => item.pattern.test(text));
+  if (pattern && LAUNCH_SHOE_MODEL_FAMILIES.has(slug(pattern.name))) {
+    return modelColorKey(pattern.name);
+  }
+  return modelColorKey(modelName);
 }
 
 function modelColorKey(value = "") {
