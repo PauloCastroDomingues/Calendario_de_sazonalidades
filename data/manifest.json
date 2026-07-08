@@ -1,60 +1,60 @@
 {
-  "generated_at": "2026-07-07T14:56:50.927Z",
+  "generated_at": "2026-07-08T10:56:02.564Z",
   "mode": "apps_script_bigquery_d1",
   "project_id": "reise-ssot",
-  "start_date": "2024-06-06",
-  "end_date": "2026-07-06",
+  "start_date": "2024-06-07",
+  "end_date": "2026-07-07",
   "dry_run": false,
   "bq_export_enabled": true,
   "max_bytes_billed": 3221225472,
   "files": {
     "kpis_dia.json": {
       "rows": 761,
-      "bytes_processed": 76728,
+      "bytes_processed": 76768,
       "location": "US",
-      "start_date": "2024-06-06",
+      "start_date": "2024-06-07",
       "updated": true
     },
     "funil_dia.json": {
-      "rows": 168,
-      "bytes_processed": 5403111,
+      "rows": 169,
+      "bytes_processed": 5428963,
       "location": "US",
-      "start_date": "2024-06-06",
+      "start_date": "2024-06-07",
       "updated": true
     },
     "produtos_dia.json": {
-      "rows": 21597,
-      "bytes_processed": 305532027,
+      "rows": 21760,
+      "bytes_processed": 308612392,
       "location": "US",
-      "start_date": "2024-06-06",
+      "start_date": "2024-06-07",
       "updated": true
     },
     "lancamentos_produtos_dia.json": {
-      "rows": 30666,
-      "bytes_processed": 791246556,
+      "rows": 30831,
+      "bytes_processed": 791280112,
       "location": "southamerica-east1",
       "start_date": "2025-02-11",
       "updated": true
     },
     "campanhas_dia.json": {
-      "rows": 5328,
-      "bytes_processed": 2276400831,
+      "rows": 5378,
+      "bytes_processed": 2296301765,
       "location": "US",
-      "start_date": "2024-06-06",
+      "start_date": "2024-06-07",
       "updated": true
     },
     "utms_dia.json": {
-      "rows": 7263,
-      "bytes_processed": 182705550,
+      "rows": 7319,
+      "bytes_processed": 184303126,
       "location": "US",
-      "start_date": "2024-06-06",
+      "start_date": "2024-06-07",
       "updated": true
     },
     "estoque.json": {
       "rows": 1040,
-      "bytes_processed": 707414077,
+      "bytes_processed": 710286754,
       "location": "southamerica-east1",
-      "start_date": "2024-06-06",
+      "start_date": "2024-06-07",
       "updated": true
     },
     "eventos_manuais.json": {
